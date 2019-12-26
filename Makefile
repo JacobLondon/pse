@@ -1,7 +1,7 @@
 TARGET=pse
 CXX=g++
 CXXFLAGS=-std=c++17 -march=native -O2 -pipe -lSDL2
-OBJS=src/main.o
+OBJS=src/draw.o src/main.o
 
 .PHONY: clean
 
