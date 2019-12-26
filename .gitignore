@@ -1,0 +1,16 @@
+.vs
+.vscode
+.DS_Store
+
+# Visual Studio generated dirs
+x64/
+Release/
+Debug/
+
+*.o
+*.obj
+
+# allow for includes
+!/lib/x64
+# ignore top level DLL
+/SDL2.dll
