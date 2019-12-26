@@ -158,10 +158,16 @@
     <ClCompile Include="src\context.cpp" />
     <ClCompile Include="src\draw.cpp" />
     <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\modules\demo.cpp" />
+    <ClCompile Include="src\modules\rogue.cpp" />
+    <ClCompile Include="src\util.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\context.hpp" />
     <ClInclude Include="src\draw.hpp" />
+    <ClInclude Include="src\modules.hpp" />
+    <ClInclude Include="src\pse.hpp" />
+    <ClInclude Include="src\util.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
