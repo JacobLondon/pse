@@ -9,6 +9,7 @@ constexpr int MAP_GRID = 3;
 constexpr int MAP_SIZE = 27;
 constexpr int MAP_SCALING = 30;
 
+// 2. grid data
 struct Room {
     bool is_connected = false;
     int rooms[MAX_NEIGHBORS] = { 0 };
@@ -46,21 +47,25 @@ Room Map[MAP_GRID][MAP_GRID];
 void room_gen();
 void room_gen()
 {
-    // create the grid of empty rooms
+    // 1. create the grid of empty rooms
     Room rooms[MAP_GRID * MAP_GRID];
     for (int i = 0; i < MAP_GRID * MAP_GRID; ++i) {
         rooms[i] = Room{};
     }
 
-    // pick a random room to start with
-    //rooms[rand_range(0, MAP_GRID * MAP_GRID)].is_connected = true;
-
     // determine if there are still rooms to connect
     auto unconnected_neighbors = [&](int i, int j) {
-        return (!rooms[i * MAP_GRID + j - 1].is_connected
-             || !rooms[i * MAP_GRID + j + 1].is_connected
-             || !rooms[(i - 1) * MAP_GRID + j].is_connected
-             || !rooms[(i + 1) * MAP_GRID + j].is_connected);
+        bool connected = false;
+        if (j - 1 >= 0)
+            connected = connected || !rooms[i * MAP_GRID + j - 1].is_connected;
+        if (j + 1 < MAP_GRID)
+            connected = connected || !rooms[i * MAP_GRID + j + 1].is_connected;
+        if (i - 1 >= 0)
+            connected = connected || !rooms[(i - 1) * MAP_GRID + j].is_connected;
+        if (i + 1 < MAP_GRID)
+            connected = connected || !rooms[(i + 1) * MAP_GRID + j].is_connected;
+        
+        return connected;
     };
 
     auto up_try_insert = [&](int i, int j) {
@@ -104,39 +109,49 @@ void room_gen()
         return false;
     };
 
-    // connect rooms randomly
-    for (int i = 0; i < MAP_GRID; ++i) {
-        for (int j = 0; j < MAP_GRID; ++j) {
-            if (rooms[i * MAP_GRID + j].is_connected)
-                continue;
-
-            if (!unconnected_neighbors(i, j))
-                continue;
-            
-            int choice = rand_range(0, 4);
-            switch (choice) {
-            case 0:
-                if (!up_try_insert(i, j))
-                    continue;
-                break;
-            case 1:
-                if (!down_try_insert(i, j))
-                    continue;
-                break;
-            case 2:
-                if (!left_try_insert(i, j))
-                    continue;
-                break;
-            case 3:
-                if (!right_try_insert(i, j))
-                    continue;
-                break;
+    int direction;
+    auto room_try_connect = [&](int i, int j) {
+        direction = rand_range(0, MAX_NEIGHBORS);
+        printf("d = %d, i = %d, j= %d\n", direction, i, j);
+        switch (direction) {
+            case UP:    return up_try_insert(i, j);
+            case RIGHT: return right_try_insert(i, j);
+            case DOWN:  return down_try_insert(i, j);
+            case LEFT:  return left_try_insert(i, j);
             default:
-                fprintf(stderr, "Error: Invalid room choice: %d\n", choice);
+                fprintf(stderr, "Error: Invalid room choice: %d\n", direction);
                 exit(-1);
+        }
+    };
+
+    // 3. pick a random room to start with
+    int curr_i = rand_range(0, MAP_GRID);
+    int curr_j = rand_range(0, MAP_GRID);
+    rooms[curr_i * MAP_GRID + curr_j].is_connected = true;
+
+    // 4. connect unconnected neighbors
+    while (unconnected_neighbors(curr_i, curr_j)) {
+        if (room_try_connect(curr_i, curr_j)) {
+            switch (direction) {
+                case UP:    curr_j -= 1; break;
+                case RIGHT: curr_i += 1; break;
+                case DOWN:  curr_j += 1; break;
+                case LEFT:  curr_i -= 1; break;
+                default:
+                    fprintf(stderr, "Error: Invalid room direction: %d\n", direction);
+                    exit(-1);
             }
         }
     }
+    /*
+    // 5. connect any unconnected rooms
+    for (int i = 0; i < MAP_GRID; ++i) {
+        for (int j = 0; j < MAP_GRID; ++j) {
+            while (!rooms[i * MAP_GRID + j].is_connected) {
+                room_try_connect(i, j);
+            }
+        }
+    }*/
 
     // add rooms to map
     for (int i = 0; i < MAP_GRID; ++i) {
@@ -163,21 +178,11 @@ void rogue_update(pse::Context& ctx)
 
     auto draw_room = [&](int i, int j) {
         switch (Map[i][j].index) {
-        case 0:
-            draw_square(pse::Red, i, j);
-            break;
-        case 1:
-            draw_square(pse::Blue, i, j);
-            break;
-        case 2:
-            draw_square(pse::Yellow, i, j);
-            break;
-        case 3:
-            draw_square(pse::Green, i, j);
-            break;
-        default:
-            draw_square(pse::Magenta, i, j);
-            break;
+            case 0:  draw_square(pse::Red, i, j);     break;
+            case 1:  draw_square(pse::Blue, i, j);    break;
+            case 2:  draw_square(pse::Yellow, i, j);  break;
+            case 3:  draw_square(pse::Green, i, j);   break;
+            default: draw_square(pse::Magenta, i, j); break;
         }
     };
 
@@ -187,41 +192,43 @@ void rogue_update(pse::Context& ctx)
             int y = j * MAP_GRID * MAP_SCALING;
             int w = MAP_GRID * MAP_SCALING / 5;
             switch (Map[i][j].rooms[k]) {
-            case Directions::UP:
-                pse::rect_fill(ctx.renderer, pse::Purple, SDL_Rect{
-                    x + MAP_GRID * MAP_SCALING / 2 - w / 2,
-                    y, w, w
-                });
-                break;
-            case Directions::LEFT:
-                pse::rect_fill(ctx.renderer, pse::Purple, SDL_Rect{
-                    x,
-                    y + MAP_GRID * MAP_SCALING / 2 - w / 2,
-                    w, w
-                });
-                break;
-            case Directions::DOWN:
-                pse::rect_fill(ctx.renderer, pse::Purple, SDL_Rect{
-                    x + MAP_GRID * MAP_SCALING / 2 - w / 2,
-                    y + MAP_GRID * MAP_SCALING - w,
-                    w, w
-                });
-                break;
-            case Directions::RIGHT:
-                pse::rect_fill(ctx.renderer, pse::Purple, SDL_Rect{
-                    x + MAP_GRID * MAP_SCALING - w,
-                    y + MAP_GRID * MAP_SCALING / 2 - w / 2,
-                    w, w
-                });
-                break;
-            default:
-                break;
+                case UP:
+                    pse::rect_fill(ctx.renderer, pse::Purple, SDL_Rect{
+                        x + MAP_GRID * MAP_SCALING / 2 - w / 2,
+                        y, w, w
+                    });
+                    break;
+                case RIGHT:
+                    pse::rect_fill(ctx.renderer, pse::Purple, SDL_Rect{
+                        x + MAP_GRID * MAP_SCALING - w,
+                        y + MAP_GRID * MAP_SCALING / 2 - w / 2,
+                        w, w
+                    });
+                    break;
+                case DOWN:
+                    pse::rect_fill(ctx.renderer, pse::Purple, SDL_Rect{
+                        x + MAP_GRID * MAP_SCALING / 2 - w / 2,
+                        y + MAP_GRID * MAP_SCALING - w,
+                        w, w
+                    });
+                    break;
+                case LEFT:
+                    pse::rect_fill(ctx.renderer, pse::Purple, SDL_Rect{
+                        x,
+                        y + MAP_GRID * MAP_SCALING / 2 - w / 2,
+                        w, w
+                    });
+                    break;
+                default:
+                    break;
             }
         }
     };
 
     if (ctx.keystate[SDL_SCANCODE_SPACE])
         room_gen();
+
+    // TODO: Some rooms are magenta, and should not be
 
     // draw rooms
     for (int i = 0; i < MAP_GRID; ++i) {
