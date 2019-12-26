@@ -11,7 +11,6 @@ Context::Context(const char* title, int w, int h, unsigned fps,
     void (*setup)(Context& ctx), void (*update)(Context& ctx))
     : window{ nullptr }, renderer{ nullptr }, event{},
       mouse{ 0, 0 }, keystate{ nullptr },
-      setup{ setup }, update{ update },
       frame_target{ fps }, frame_counter{ 0 }, delta_time{ 1.0 },
       screen_width{ w }, screen_height{ h }, title{ title }
 {
@@ -33,6 +32,20 @@ Context::Context(const char* title, int w, int h, unsigned fps,
         fprintf(stderr, "Error: Failed to initialize SDL Renderer\n");
         exit(-1);
     }
+
+    /**
+     * Utility
+     */
+
+    auto time_now = []() {
+        return std::chrono::high_resolution_clock::now();
+    };
+    auto time_in_us = [](auto time) {
+        return std::chrono::duration_cast<std::chrono::microseconds>(time).count();
+    };
+    auto sleep_us = [](auto time) {
+        std::this_thread::sleep_for(std::chrono::microseconds((long long)(time)));
+    };
 
     /**
      * Update
@@ -65,15 +78,14 @@ Context::Context(const char* title, int w, int h, unsigned fps,
         SDL_RenderPresent(renderer);
 
         // frame management
-        auto frame_time_diff = std::chrono::high_resolution_clock::now() - frame_time_next;
-        frame_time_next = std::chrono::high_resolution_clock::now();
-        frame_time = std::chrono::duration_cast<std::chrono::microseconds>(frame_time_diff).count();
+        auto frame_time_diff = time_now() - frame_time_next;
+        frame_time_next = time_now();
+        frame_time = time_in_us(frame_time_diff);
         if (frame_time_target - frame_time > 0)
-            std::this_thread::sleep_for(std::chrono::microseconds((long long)(frame_time_target - frame_time)));
+            sleep_us(frame_time_target - frame_time);
 
         frame_counter = (frame_counter + 1) % frame_target;
         delta_time = frame_time / 1000000.0;
-        //printf("frame: %2d / %2d | fps: %4.2lf\r", frame_counter, frame_target, 1.0 / delta_time);
     }
 
 Quit:
