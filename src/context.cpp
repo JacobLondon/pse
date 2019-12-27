@@ -52,8 +52,8 @@ Context::Context(const char* title, int w, int h, unsigned fps,
      */
 
     double frame_time, frame_time_target = 1.0 / frame_target * 1000000.0;
-    auto frame_time_next = std::chrono::high_resolution_clock::now(),
-        frame_time_diff = std::chrono::high_resolution_clock::now();
+    auto frame_time_next = time_now(),
+         frame_time_diff = time_now();
 
     setup(*this);
 

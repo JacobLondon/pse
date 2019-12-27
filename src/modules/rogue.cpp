@@ -9,8 +9,8 @@ namespace Modules {
  */
 
 constexpr unsigned MAX_NEIGHBORS = 4;
-constexpr int MAP_GRID = 3;
-constexpr int MAP_SIZE = 27;
+constexpr int MAP_GRID = 5;
+constexpr int MAP_SIZE = 40;
 constexpr int MAP_SCALING = 60;
 
 /**
@@ -57,7 +57,9 @@ struct Room {
  * Globals
  */
 
-Room Map[MAP_GRID][MAP_GRID];
+Room Graph[MAP_GRID][MAP_GRID];
+int Map[MAP_SIZE][MAP_SIZE];
+int start_i, start_j, end_i, end_j;
 
 
 /******************************************************************************
@@ -82,7 +84,7 @@ Room Map[MAP_GRID][MAP_GRID];
  * 11. All done!
  */
 
-void room_gen(); // generate a set of rooms from globals, write data structure into the global 'Map'
+void room_gen(); // generate a set of rooms from globals, write data structure into the global 'Graph'
 bool unconnected_neighbors(Room *rooms, int i, int j);  // return true if a room has at least 1 unconnected neighbor
 bool up_try_insert(Room *rooms, int i, int j);          // try to make room connection up, return false on fail
 bool right_try_insert(Room *rooms, int i, int j);       // try to make room connection right, return false on fail
@@ -152,14 +154,12 @@ bool left_try_insert(Room *rooms, int i, int j)
 bool unconnected_neighbors(Room *rooms, int i, int j)
 {
     bool connected = false;
-    if (j - 1 >= 0)
-        connected = connected || !rooms[i * MAP_GRID + j - 1].is_connected;
-    if (j + 1 < MAP_GRID)
-        connected = connected || !rooms[i * MAP_GRID + j + 1].is_connected;
-    if (i - 1 >= 0)
-        connected = connected || !rooms[(i - 1) * MAP_GRID + j].is_connected;
-    if (i + 1 < MAP_GRID)
-        connected = connected || !rooms[(i + 1) * MAP_GRID + j].is_connected;
+
+    // bounds check before checking neighbors
+    if (j - 1 >= 0)       connected = connected || !rooms[i * MAP_GRID + j - 1].is_connected;
+    if (j + 1 < MAP_GRID) connected = connected || !rooms[i * MAP_GRID + j + 1].is_connected;
+    if (i - 1 >= 0)       connected = connected || !rooms[(i - 1) * MAP_GRID + j].is_connected;
+    if (i + 1 < MAP_GRID) connected = connected || !rooms[(i + 1) * MAP_GRID + j].is_connected;
     
     return connected;
 }
@@ -176,6 +176,8 @@ void room_gen()
     int curr_i = rand_range(0, MAP_GRID);
     int curr_j = rand_range(0, MAP_GRID);
     rooms[curr_i * MAP_GRID + curr_j].is_connected = true;
+    // record entry room
+    start_i = curr_i; start_j = curr_j;
 
     // 4. connect unconnected neighbors, change the state of direction
     int direction;
@@ -206,8 +208,10 @@ void room_gen()
             }
         }
     }
+    // record stair room
+    end_i = curr_i; end_j = curr_j;
     
-    // 5. connect any still unconnected rooms with at least 2 neighbors, prevent dead room connections
+    /*// 5. connect any still unconnected rooms with at least 2 neighbors, prevent dead room connections
     for (int i = 0; i < MAP_GRID; ++i) {
         for (int j = 0; j < MAP_GRID; ++j) {
             if (!rooms[i * MAP_GRID + j].is_connected) {
@@ -215,12 +219,15 @@ void room_gen()
                     room_try_connect(i, j);
             }
         }
-    }
+    }*/
+
+    // 8. Create map with rooms
+
 
     // add rooms to map
     for (int i = 0; i < MAP_GRID; ++i) {
         for (int j = 0; j < MAP_GRID; ++j) {
-            Map[i][j] = rooms[i * MAP_GRID + j];
+            Graph[i][j] = rooms[i * MAP_GRID + j];
         }
     }
 
@@ -247,23 +254,24 @@ void rogue_update(pse::Context& ctx)
     };
 
     auto draw_room = [&](int i, int j) {
-        switch (Map[i][j].index) {
-            case 0:  draw_square(pse::Red, i, j);     break;
-            case 1:  draw_square(pse::Blue, i, j);    break;
-            case 2:  draw_square(pse::Yellow, i, j);  break;
-            case 3:  draw_square(pse::Green, i, j);   break;
-            default:
-                draw_square(pse::Magenta, i, j);
-                break;
-        }
+        SDL_Color c;
+        if (i == start_i && j == start_j)
+            c = pse::Sky;
+        else if (i == end_i && j == end_j)
+            c = pse::Orange;
+        else if (Graph[i][j].index == 0)
+            c = pse::Red;
+        else
+            c = pse::Blue;
+        draw_square(c, i, j);
     };
 
     auto draw_doors = [&](int i, int j) {
-        for (int k = 0; k < Map[i][j].index; ++k) {
+        for (int k = 0; k < Graph[i][j].index; ++k) {
             int x = i * MAP_SCALING;
             int y = j * MAP_SCALING;
             int w = MAP_SCALING / 5;
-            switch (Map[i][j].neighbors[k]) {
+            switch (Graph[i][j].neighbors[k]) {
                 case UP:
                     pse::rect_fill(ctx.renderer, pse::Purple, SDL_Rect{
                         x + MAP_SCALING / 2 - w / 2,
