@@ -4,10 +4,18 @@
 
 namespace Modules {
 
+/**
+ * Constants
+ */
+
 constexpr unsigned MAX_NEIGHBORS = 4;
 constexpr int MAP_GRID = 3;
 constexpr int MAP_SIZE = 27;
 constexpr int MAP_SCALING = 60;
+
+/**
+ * Definitions
+ */
 
 enum Directions {
     UP,
@@ -19,14 +27,15 @@ enum Directions {
 // 2. grid data
 struct Room {
     bool is_connected = false;
-    int rooms[MAX_NEIGHBORS] = { 0 };
+    int neighbors[MAX_NEIGHBORS] = { 0 };
     int index = 0;
-    void insert(int neighbor) {
-        rooms[index++] = neighbor;
+
+    void insert_neighbor(int neighbor) {
+        neighbors[index++] = neighbor;
     }
     void print() {
         for (int i = 0; i < index; ++i) {
-            switch (rooms[i]) {
+            switch (neighbors[i]) {
             case UP:    printf("Up ");    break;
             case RIGHT: printf("Right "); break;
             case DOWN:  printf("Down ");  break;
@@ -34,35 +43,127 @@ struct Room {
             }
         }
     }
+    // check if the given neighbor is already connected to
     bool check_neighbor(int neighbor) {
         for (int i = 0; i < index; ++i) {
-            if (rooms[i] == neighbor)
+            if (neighbors[i] == neighbor)
                 return true;
         }
         return false;
     }
 };
 
+/**
+ * Globals
+ */
 
 Room Map[MAP_GRID][MAP_GRID];
 
 
-/**
+/******************************************************************************
+ * Room Generation
+ * 
  * https://web.archive.org/web/20131025132021/http://kuoi.org/~kamikaze/GameDesign/art07_rogue_dungeon.php
  * 
  * 1. Divide the map into a grid (Rogue uses 3x3, but any size will work).
  * 2. Give each grid a flag indicating if it's "connected" or not, and an array of which grid numbers it's connected to.
  * 3. Pick a random room to start with, and mark it "connected".
  * 4. While there are unconnected neighbor rooms, connect to one of them, make that the current room, mark it "connected", and repeat.
- * 5. While there are unconnected rooms, try to connect them to a random connected neighbor (if a room has no connected neighbors yet, just keep cycling, you'll fill out to it eventually).
+ * 5. While there are unconnected rooms, try to connect them to a random connected neighbor
+ *    (if a room has no connected neighbors yet, just keep cycling, you'll fill out to it eventually).
  * 6. All rooms are now connected at least once.
  * 7. Make 0 or more random connections to taste; I find rnd(grid_width) random connections looks good.
- * 8. Draw the rooms onto the map, and draw a corridor from the center of each room to the center of each connected room, changing wall blocks into corridors. If your rooms fill most or all of the space of the grid, your corridors will very short - just holes in the wall.
+ * 8. Draw the rooms onto the map, and draw a corridor from the center of each room to the center of each connected room,
+ *    changing wall blocks into corridors. If your rooms fill most or all of the space of the grid,
+ *    your corridors will very short - just holes in the wall.
  * 9. Scan the map for corridor squares with 2 bordering walls, 1-2 bordering rooms, and 0-1 bordering corridor, and change those to doors.
- * 10. Place your stairs up in the first room you chose, and your stairs down in the last room chosen in step 5. This will almost always be a LONG way away.
+ * 10. Place your stairs up in the first room you chose, and your stairs down in the last room chosen in step 5.
+ *     This will almost always be a LONG way away.
  * 11. All done!
  */
-void room_gen();
+
+void room_gen(); // generate a set of rooms from globals, write data structure into the global 'Map'
+bool unconnected_neighbors(Room *rooms, int i, int j);  // return true if a room has at least 1 unconnected neighbor
+bool up_try_insert(Room *rooms, int i, int j);          // try to make room connection up, return false on fail
+bool right_try_insert(Room *rooms, int i, int j);       // try to make room connection right, return false on fail
+bool down_try_insert(Room *rooms, int i, int j);        // try to make room connection down, return false on fail
+bool left_try_insert(Room *rooms, int i, int j);        // try to make room connection left, return false on fail
+
+bool up_try_insert(Room *rooms, int i, int j)
+{
+    if (j - 1 >= 0
+        && rooms[i * MAP_GRID + j - 1].index < MAX_NEIGHBORS - 1
+        && !rooms[i * MAP_GRID + j].check_neighbor(UP))
+    {
+        rooms[i * MAP_GRID + j].is_connected = true;
+        rooms[i * MAP_GRID + j].insert_neighbor(UP);
+        rooms[i * MAP_GRID + j - 1].is_connected = true;
+        rooms[i * MAP_GRID + j - 1].insert_neighbor(DOWN);
+        return true;
+    }
+    return false;
+}
+
+bool right_try_insert(Room *rooms, int i, int j)
+{
+    if (i + 1 < MAP_GRID
+        && rooms[(i + 1) * MAP_GRID + j].index < MAX_NEIGHBORS - 1
+        && !rooms[i * MAP_GRID + j].check_neighbor(RIGHT))
+    {
+        rooms[i * MAP_GRID + j].is_connected = true;
+        rooms[i * MAP_GRID + j].insert_neighbor(RIGHT);
+        rooms[(i + 1) * MAP_GRID + j].is_connected = true;
+        rooms[(i + 1) * MAP_GRID + j].insert_neighbor(LEFT);
+        return true;
+    }
+    return false;
+}
+
+bool down_try_insert(Room *rooms, int i, int j)
+{
+    if (j + 1 < MAP_GRID
+        && rooms[i * MAP_GRID + j + 1].index < MAX_NEIGHBORS - 1
+        && !rooms[i * MAP_GRID + j].check_neighbor(DOWN))
+    {
+        rooms[i * MAP_GRID + j].is_connected = true;
+        rooms[i * MAP_GRID + j].insert_neighbor(DOWN);
+        rooms[i * MAP_GRID + j + 1].is_connected = true;
+        rooms[i * MAP_GRID + j + 1].insert_neighbor(UP);
+        return true;
+    }
+    return false;
+}
+
+bool left_try_insert(Room *rooms, int i, int j)
+{
+    if (i - 1 >= 0
+        && rooms[(i - 1) * MAP_GRID + j].index < MAX_NEIGHBORS - 1
+        && !rooms[i * MAP_GRID + j].check_neighbor(LEFT))
+    {
+        rooms[i * MAP_GRID + j].is_connected = true;
+        rooms[i * MAP_GRID + j].insert_neighbor(LEFT);
+        rooms[(i - 1) * MAP_GRID + j].is_connected = true;
+        rooms[(i - 1) * MAP_GRID + j].insert_neighbor(RIGHT);
+        return true;
+    }
+    return false;
+}
+
+bool unconnected_neighbors(Room *rooms, int i, int j)
+{
+    bool connected = false;
+    if (j - 1 >= 0)
+        connected = connected || !rooms[i * MAP_GRID + j - 1].is_connected;
+    if (j + 1 < MAP_GRID)
+        connected = connected || !rooms[i * MAP_GRID + j + 1].is_connected;
+    if (i - 1 >= 0)
+        connected = connected || !rooms[(i - 1) * MAP_GRID + j].is_connected;
+    if (i + 1 < MAP_GRID)
+        connected = connected || !rooms[(i + 1) * MAP_GRID + j].is_connected;
+    
+    return connected;
+}
+
 void room_gen()
 {
     // 1. create the grid of empty rooms
@@ -71,95 +172,28 @@ void room_gen()
         rooms[i] = Room{};
     }
 
-    // determine if there are still rooms to connect
-    auto unconnected_neighbors = [&](int i, int j) {
-        bool connected = false;
-        if (j - 1 >= 0)
-            connected = connected || !rooms[i * MAP_GRID + j - 1].is_connected;
-        if (j + 1 < MAP_GRID)
-            connected = connected || !rooms[i * MAP_GRID + j + 1].is_connected;
-        if (i - 1 >= 0)
-            connected = connected || !rooms[(i - 1) * MAP_GRID + j].is_connected;
-        if (i + 1 < MAP_GRID)
-            connected = connected || !rooms[(i + 1) * MAP_GRID + j].is_connected;
-        
-        return connected;
-    };
+    // 3. pick a random room to start with
+    int curr_i = rand_range(0, MAP_GRID);
+    int curr_j = rand_range(0, MAP_GRID);
+    rooms[curr_i * MAP_GRID + curr_j].is_connected = true;
 
-    auto up_try_insert = [&](int i, int j) {
-        if (j - 1 >= 0
-            && rooms[i * MAP_GRID + j - 1].index < MAX_NEIGHBORS - 1
-            && !rooms[i * MAP_GRID + j].check_neighbor(UP))
-        {
-            rooms[i * MAP_GRID + j].is_connected = true;
-            rooms[i * MAP_GRID + j].insert(UP);
-            rooms[i * MAP_GRID + j - 1].is_connected = true;
-            rooms[i * MAP_GRID + j - 1].insert(DOWN);
-            return true;
-        }
-        return false;
-    };
-    auto down_try_insert = [&](int i, int j) {
-        if (j + 1 < MAP_GRID
-            && rooms[i * MAP_GRID + j + 1].index < MAX_NEIGHBORS - 1
-            && !rooms[i * MAP_GRID + j].check_neighbor(DOWN))
-        {
-            rooms[i * MAP_GRID + j].is_connected = true;
-            rooms[i * MAP_GRID + j].insert(DOWN);
-            rooms[i * MAP_GRID + j + 1].is_connected = true;
-            rooms[i * MAP_GRID + j + 1].insert(UP);
-            return true;
-        }
-        return false;
-    };
-    auto left_try_insert = [&](int i, int j) {
-        if (i - 1 >= 0
-            && rooms[(i - 1) * MAP_GRID + j].index < MAX_NEIGHBORS - 1
-            && !rooms[i * MAP_GRID + j].check_neighbor(LEFT))
-        {
-            rooms[i * MAP_GRID + j].is_connected = true;
-            rooms[i * MAP_GRID + j].insert(LEFT);
-            rooms[(i - 1) * MAP_GRID + j].is_connected = true;
-            rooms[(i - 1) * MAP_GRID + j].insert(RIGHT);
-            return true;
-        }
-        return false;
-    };
-    auto right_try_insert = [&](int i, int j) {
-        if (i + 1 < MAP_GRID
-            && rooms[(i + 1) * MAP_GRID + j].index < MAX_NEIGHBORS - 1
-            && !rooms[i * MAP_GRID + j].check_neighbor(RIGHT))
-        {
-            rooms[i * MAP_GRID + j].is_connected = true;
-            rooms[i * MAP_GRID + j].insert(RIGHT);
-            rooms[(i + 1) * MAP_GRID + j].is_connected = true;
-            rooms[(i + 1) * MAP_GRID + j].insert(LEFT);
-            return true;
-        }
-        return false;
-    };
-
+    // 4. connect unconnected neighbors, change the state of direction
     int direction;
     auto room_try_connect = [&](int i, int j) {
         direction = rand_range(0, MAX_NEIGHBORS);
         switch (direction) {
-            case UP:    return up_try_insert(i, j);
-            case RIGHT: return right_try_insert(i, j);
-            case DOWN:  return down_try_insert(i, j);
-            case LEFT:  return left_try_insert(i, j);
+            case UP:    return up_try_insert(rooms, i, j);
+            case RIGHT: return right_try_insert(rooms, i, j);
+            case DOWN:  return down_try_insert(rooms, i, j);
+            case LEFT:  return left_try_insert(rooms, i, j);
             default:
                 fprintf(stderr, "Error: Invalid room choice: %d\n", direction);
                 exit(-1);
         }
     };
 
-    // 3. pick a random room to start with
-    int curr_i = rand_range(0, MAP_GRID);
-    int curr_j = rand_range(0, MAP_GRID);
-    rooms[curr_i * MAP_GRID + curr_j].is_connected = true;
-
-    // 4. connect unconnected neighbors
-    while (unconnected_neighbors(curr_i, curr_j)) {
+    // change current room selection from chosen direction
+    while (unconnected_neighbors(rooms, curr_i, curr_j)) {
         if (room_try_connect(curr_i, curr_j)) {
             switch (direction) {
                 case UP:    curr_j -= 1; break;
@@ -172,15 +206,16 @@ void room_gen()
             }
         }
     }
-    /*
-    // 5. connect any unconnected rooms
+    
+    // 5. connect any still unconnected rooms with at least 2 neighbors, prevent dead room connections
     for (int i = 0; i < MAP_GRID; ++i) {
         for (int j = 0; j < MAP_GRID; ++j) {
-            while (!rooms[i * MAP_GRID + j].is_connected) {
-                room_try_connect(i, j);
+            if (!rooms[i * MAP_GRID + j].is_connected) {
+                while (rooms[i * MAP_GRID + j].index < 2)
+                    room_try_connect(i, j);
             }
         }
-    }*/
+    }
 
     // add rooms to map
     for (int i = 0; i < MAP_GRID; ++i) {
@@ -189,17 +224,12 @@ void room_gen()
         }
     }
 
-    // print rooms
-    for (int i = 0; i < MAP_GRID; ++i) {
-        for (int j = 0; j < MAP_GRID; ++j) {
-            if (Map[i][j].index == 4) {
-                printf("(%d, %d) has %d neighbors\n", j, i, rooms[i * MAP_GRID + j].index);
-                rooms[i * MAP_GRID + j].print();
-            }
-        }
-    }
-    printf("\n");
 }
+
+/******************************************************************************
+ * PSE Interface
+ * 
+ */
 
 void rogue_setup(pse::Context& ctx)
 {
@@ -233,7 +263,7 @@ void rogue_update(pse::Context& ctx)
             int x = i * MAP_SCALING;
             int y = j * MAP_SCALING;
             int w = MAP_SCALING / 5;
-            switch (Map[i][j].rooms[k]) {
+            switch (Map[i][j].neighbors[k]) {
                 case UP:
                     pse::rect_fill(ctx.renderer, pse::Purple, SDL_Rect{
                         x + MAP_SCALING / 2 - w / 2,
