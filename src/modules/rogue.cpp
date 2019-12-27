@@ -9,13 +9,19 @@ namespace Modules {
  */
 
 constexpr unsigned MAX_NEIGHBORS = 4;
-constexpr int MAP_GRID = 5;
+constexpr int MAP_GRID = 3;
 constexpr int MAP_SIZE = 40;
 constexpr int MAP_SCALING = 60;
 
 /**
  * Definitions
  */
+
+enum BuildingBlocks {
+    WALL = '#',
+    FLOOR = '.',
+    EMPTY = ' ',
+};
 
 enum Directions {
     UP,
@@ -211,7 +217,7 @@ void room_gen()
     // record stair room
     end_i = curr_i; end_j = curr_j;
     
-    /*// 5. connect any still unconnected rooms with at least 2 neighbors, prevent dead room connections
+    // 5. connect any still unconnected rooms with at least 2 neighbors, prevent dead room connections
     for (int i = 0; i < MAP_GRID; ++i) {
         for (int j = 0; j < MAP_GRID; ++j) {
             if (!rooms[i * MAP_GRID + j].is_connected) {
@@ -219,10 +225,7 @@ void room_gen()
                     room_try_connect(i, j);
             }
         }
-    }*/
-
-    // 8. Create map with rooms
-
+    }
 
     // add rooms to map
     for (int i = 0; i < MAP_GRID; ++i) {
@@ -231,6 +234,95 @@ void room_gen()
         }
     }
 
+    // 8. Create map with rooms
+    for (int i = 0; i < MAP_SIZE; ++i) {
+        for (int j = 0; j < MAP_SIZE; ++j) {
+            Map[i][j] = WALL;
+        }
+    }
+
+    // the number of tiles square of each room
+    int room_width = MAP_SIZE / MAP_GRID - 1;
+    int room_tolerance = room_width / 2;
+
+    auto tile_gen = [&](int mi, int mj) {
+
+        // ignore empty rooms
+        if (Graph[mi][mj].index == 0)
+            return;
+
+        /*
+        // room width and height from center of room
+        int room_w = rand_range(room_tolerance, room_width);
+        int room_h = rand_range(room_tolerance, room_width);
+        
+        int room_y = y * room_width;
+        int room_x = x * room_width;
+        // adjust the center offset to the actual room center
+        int center_y = room_y + room_h / 2;
+        int center_x = room_x + room_w / 2;
+        
+        for (int i = room_y; i < room_y + room_h; ++i) {
+            for (int j = room_x; j < room_x + room_w; ++j) {
+                Map[i][j] = EMPTY;
+            }
+        }
+        */
+
+        for (int i = mi * room_width; i < mi * room_width + room_width; ++i) {
+            for (int j = mj * room_width; j < mj * room_width + room_width; ++j) {
+
+                // ignore walls
+                if (i == mi * room_width
+                        || i == mi * room_width + room_width - 1
+                        || j == mj * room_width
+                        || j == mj * room_width + room_width - 1)
+                    continue;
+                Map[i][j] = EMPTY;
+            }
+        }
+        
+        // walk towards door
+        if (Graph[mi][mj].check_neighbor(UP)) {
+            for (int i = mi * room_width + room_width / 2; i < mi * room_width + 2 * room_width; ++i)
+                Map[mi][mj * room_width + room_width / 2] = FLOOR;
+        }
+        /*if (Graph[y][x].check_neighbor(DOWN)) {
+            for (int i = x * room_width + room_width / 2; i < room_x + room_width + room_width; ++i)
+                Map[y * room_width + room_width / 2][i] = FLOOR;
+        }*/
+        
+        /*if (Graph[y][x].check_neighbor(RIGHT))
+            for (int i = center_y; i < room_x + room_width + room_tolerance; ++i)
+                Map[i][center_x] = FLOOR;
+        if (Graph[y][x].check_neighbor(UP))
+            for (int i = center_x; i >= x * room_width - room_tolerance; --i)
+                Map[center_y][i] = FLOOR;
+        */
+        // draw surrounding border
+        for (int i = 0; i < MAP_SIZE; ++i) {
+            for (int j = 0; j < MAP_SIZE; ++j) {
+                if (i == 0 || i == MAP_SIZE - 1 || j == 0 || j == MAP_SIZE - 1)
+                    Map[i][j] = WALL;
+            }
+        }
+        //Map[center_y][center_x] = FLOOR;
+    };
+
+    // for each node in the graph
+    for (int i = 0; i < MAP_GRID; ++i) {
+        for (int j = 0; j < MAP_GRID; ++j) {
+            tile_gen(i, j);
+        }
+    }
+
+    for (int i = 0; i < MAP_SIZE; ++i) {
+        printf("\n");
+        for (int j = 0; j < MAP_SIZE; ++j) {
+            printf("%c", (char)Map[i][j]);
+        }
+    }
+    printf("\n");
 }
 
 /******************************************************************************
