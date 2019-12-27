@@ -99,14 +99,14 @@ bool left_try_insert(Room *rooms, int i, int j);        // try to make room conn
 
 bool up_try_insert(Room *rooms, int i, int j)
 {
-    if (j - 1 >= 0
-        && rooms[i * MAP_GRID + j - 1].index < MAX_NEIGHBORS - 1
+    if (i - 1 >= 0
+        && rooms[(i - 1) * MAP_GRID + j].index < MAX_NEIGHBORS - 1
         && !rooms[i * MAP_GRID + j].check_neighbor(UP))
     {
         rooms[i * MAP_GRID + j].is_connected = true;
         rooms[i * MAP_GRID + j].insert_neighbor(UP);
-        rooms[i * MAP_GRID + j - 1].is_connected = true;
-        rooms[i * MAP_GRID + j - 1].insert_neighbor(DOWN);
+        rooms[(i - 1) * MAP_GRID + j].is_connected = true;
+        rooms[(i - 1) * MAP_GRID + j].insert_neighbor(DOWN);
         return true;
     }
     return false;
@@ -114,14 +114,14 @@ bool up_try_insert(Room *rooms, int i, int j)
 
 bool right_try_insert(Room *rooms, int i, int j)
 {
-    if (i + 1 < MAP_GRID
-        && rooms[(i + 1) * MAP_GRID + j].index < MAX_NEIGHBORS - 1
+    if (j + 1 < MAP_GRID
+        && rooms[i * MAP_GRID + j + 1].index < MAX_NEIGHBORS - 1
         && !rooms[i * MAP_GRID + j].check_neighbor(RIGHT))
     {
         rooms[i * MAP_GRID + j].is_connected = true;
         rooms[i * MAP_GRID + j].insert_neighbor(RIGHT);
-        rooms[(i + 1) * MAP_GRID + j].is_connected = true;
-        rooms[(i + 1) * MAP_GRID + j].insert_neighbor(LEFT);
+        rooms[i * MAP_GRID + j + 1].is_connected = true;
+        rooms[i * MAP_GRID + j + 1].insert_neighbor(LEFT);
         return true;
     }
     return false;
@@ -129,14 +129,14 @@ bool right_try_insert(Room *rooms, int i, int j)
 
 bool down_try_insert(Room *rooms, int i, int j)
 {
-    if (j + 1 < MAP_GRID
-        && rooms[i * MAP_GRID + j + 1].index < MAX_NEIGHBORS - 1
+    if (i + 1 < MAP_GRID
+        && rooms[(i + 1) * MAP_GRID + j].index < MAX_NEIGHBORS - 1
         && !rooms[i * MAP_GRID + j].check_neighbor(DOWN))
     {
         rooms[i * MAP_GRID + j].is_connected = true;
         rooms[i * MAP_GRID + j].insert_neighbor(DOWN);
-        rooms[i * MAP_GRID + j + 1].is_connected = true;
-        rooms[i * MAP_GRID + j + 1].insert_neighbor(UP);
+        rooms[(i + 1) * MAP_GRID + j].is_connected = true;
+        rooms[(i + 1) * MAP_GRID + j].insert_neighbor(UP);
         return true;
     }
     return false;
@@ -144,14 +144,14 @@ bool down_try_insert(Room *rooms, int i, int j)
 
 bool left_try_insert(Room *rooms, int i, int j)
 {
-    if (i - 1 >= 0
-        && rooms[(i - 1) * MAP_GRID + j].index < MAX_NEIGHBORS - 1
+    if (j - 1 >= 0
+        && rooms[i * MAP_GRID + j - 1].index < MAX_NEIGHBORS - 1
         && !rooms[i * MAP_GRID + j].check_neighbor(LEFT))
     {
         rooms[i * MAP_GRID + j].is_connected = true;
         rooms[i * MAP_GRID + j].insert_neighbor(LEFT);
-        rooms[(i - 1) * MAP_GRID + j].is_connected = true;
-        rooms[(i - 1) * MAP_GRID + j].insert_neighbor(RIGHT);
+        rooms[i * MAP_GRID + j - 1].is_connected = true;
+        rooms[i * MAP_GRID + j - 1].insert_neighbor(RIGHT);
         return true;
     }
     return false;
@@ -162,10 +162,10 @@ bool unconnected_neighbors(Room *rooms, int i, int j)
     bool connected = false;
 
     // bounds check before checking neighbors
-    if (j - 1 >= 0)       connected = connected || !rooms[i * MAP_GRID + j - 1].is_connected;
-    if (j + 1 < MAP_GRID) connected = connected || !rooms[i * MAP_GRID + j + 1].is_connected;
     if (i - 1 >= 0)       connected = connected || !rooms[(i - 1) * MAP_GRID + j].is_connected;
     if (i + 1 < MAP_GRID) connected = connected || !rooms[(i + 1) * MAP_GRID + j].is_connected;
+    if (j - 1 >= 0)       connected = connected || !rooms[i * MAP_GRID + j - 1].is_connected;
+    if (j + 1 < MAP_GRID) connected = connected || !rooms[i * MAP_GRID + j + 1].is_connected;
     
     return connected;
 }
@@ -204,10 +204,10 @@ void room_gen()
     while (unconnected_neighbors(rooms, curr_i, curr_j)) {
         if (room_try_connect(curr_i, curr_j)) {
             switch (direction) {
-                case UP:    curr_j -= 1; break;
-                case RIGHT: curr_i += 1; break;
-                case DOWN:  curr_j += 1; break;
-                case LEFT:  curr_i -= 1; break;
+                case UP:    curr_i -= 1; break;
+                case RIGHT: curr_j += 1; break;
+                case DOWN:  curr_i += 1; break;
+                case LEFT:  curr_j -= 1; break;
                 default:
                     fprintf(stderr, "Error: Invalid room direction: %d\n", direction);
                     exit(-1);
@@ -271,7 +271,6 @@ void room_gen()
 
         for (int i = mi * room_width; i < mi * room_width + room_width; ++i) {
             for (int j = mj * room_width; j < mj * room_width + room_width; ++j) {
-
                 // ignore walls
                 if (i == mi * room_width
                         || i == mi * room_width + room_width - 1
@@ -281,24 +280,27 @@ void room_gen()
                 Map[i][j] = EMPTY;
             }
         }
+
+        int center_i = mi * room_width + room_width / 2;
+        int center_j = mj * room_width + room_width / 2;
         
         // walk towards door
-        if (Graph[mi][mj].check_neighbor(UP)) {
-            for (int i = mi * room_width + room_width / 2; i < mi * room_width + 2 * room_width; ++i)
-                Map[mi][mj * room_width + room_width / 2] = FLOOR;
+        if (Graph[mi][mj].check_neighbor(DOWN)) {
+            for (int i = center_i; i < mi * room_width + room_width / 2; ++i)
+                Map[i][center_j] = FLOOR;
         }
-        /*if (Graph[y][x].check_neighbor(DOWN)) {
-            for (int i = x * room_width + room_width / 2; i < room_x + room_width + room_width; ++i)
-                Map[y * room_width + room_width / 2][i] = FLOOR;
-        }*/
+        if (Graph[mi][mj].check_neighbor(UP)) {
+            for (int i = center_i; i > mi * room_width - room_width / 2; --i)
+                Map[i][center_j] = FLOOR;
+        }
         
-        /*if (Graph[y][x].check_neighbor(RIGHT))
-            for (int i = center_y; i < room_x + room_width + room_tolerance; ++i)
-                Map[i][center_x] = FLOOR;
-        if (Graph[y][x].check_neighbor(UP))
-            for (int i = center_x; i >= x * room_width - room_tolerance; --i)
-                Map[center_y][i] = FLOOR;
-        */
+        if (Graph[mi][mj].check_neighbor(RIGHT))
+            for (int j = center_j; j < mj * room_width + room_width / 2; ++j)
+                Map[center_i][j] = FLOOR;
+        if (Graph[mi][mj].check_neighbor(LEFT))
+            for (int j = center_j; j > mj * room_width - room_width / 2; --j)
+                Map[center_i][j] = FLOOR;
+        
         // draw surrounding border
         for (int i = 0; i < MAP_SIZE; ++i) {
             for (int j = 0; j < MAP_SIZE; ++j) {
@@ -306,7 +308,7 @@ void room_gen()
                     Map[i][j] = WALL;
             }
         }
-        //Map[center_y][center_x] = FLOOR;
+        Map[center_i][center_j] = '0' + Graph[mi][mj].index;
     };
 
     // for each node in the graph
@@ -337,14 +339,6 @@ void rogue_setup(pse::Context& ctx)
 
 void rogue_update(pse::Context& ctx)
 {
-    auto draw_square = [&](SDL_Color c, int i, int j) {
-        pse::rect_fill(ctx.renderer, c, SDL_Rect{
-            i * MAP_SCALING + MAP_SCALING / 20,
-            j * MAP_SCALING + MAP_SCALING / 20,
-            MAP_SCALING - MAP_SCALING / 10,
-            MAP_SCALING - MAP_SCALING / 10});
-    };
-
     auto draw_room = [&](int i, int j) {
         SDL_Color c;
         if (i == start_i && j == start_j)
@@ -355,13 +349,18 @@ void rogue_update(pse::Context& ctx)
             c = pse::Red;
         else
             c = pse::Blue;
-        draw_square(c, i, j);
+        
+        pse::rect_fill(ctx.renderer, c, SDL_Rect{
+            i * MAP_SCALING + MAP_SCALING / 20,
+            j * MAP_SCALING + MAP_SCALING / 20,
+            MAP_SCALING - MAP_SCALING / 10,
+            MAP_SCALING - MAP_SCALING / 10});
     };
 
     auto draw_doors = [&](int i, int j) {
         for (int k = 0; k < Graph[i][j].index; ++k) {
-            int x = i * MAP_SCALING;
-            int y = j * MAP_SCALING;
+            int x = j * MAP_SCALING;
+            int y = i * MAP_SCALING;
             int w = MAP_SCALING / 5;
             switch (Graph[i][j].neighbors[k]) {
                 case UP:
@@ -404,6 +403,13 @@ void rogue_update(pse::Context& ctx)
     for (int i = 0; i < MAP_GRID; ++i) {
         for (int j = 0; j < MAP_GRID; ++j) {
             draw_room(i, j);
+            // can't put draw_doors here??????????????
+            //draw_doors(i, j);
+        }
+    }
+    // why can't this go above????
+    for (int i = 0; i < MAP_GRID; ++i) {
+        for (int j = 0; j < MAP_GRID; ++j) {
             draw_doors(i, j);
         }
     }
