@@ -9,8 +9,8 @@ namespace Modules {
  */
 
 constexpr unsigned MAX_NEIGHBORS = 4;
-constexpr int MAP_GRID = 3;
-constexpr int MAP_SIZE = 40;
+constexpr int MAP_GRID = 6;
+constexpr int MAP_SIZE = 60;    // ~10x MAP_GRID
 constexpr int MAP_SCALING = 60;
 
 /**
@@ -251,33 +251,17 @@ void room_gen()
         if (Graph[mi][mj].index == 0)
             return;
 
-        /*
         // room width and height from center of room
         int room_w = rand_range(room_tolerance, room_width);
         int room_h = rand_range(room_tolerance, room_width);
-        
-        int room_y = y * room_width;
-        int room_x = x * room_width;
-        // adjust the center offset to the actual room center
+        int room_y = mi * room_width;
+        int room_x = mj * room_width;
         int center_y = room_y + room_h / 2;
         int center_x = room_x + room_w / 2;
         
         for (int i = room_y; i < room_y + room_h; ++i) {
             for (int j = room_x; j < room_x + room_w; ++j) {
-                Map[i][j] = EMPTY;
-            }
-        }
-        */
-
-        for (int i = mi * room_width; i < mi * room_width + room_width; ++i) {
-            for (int j = mj * room_width; j < mj * room_width + room_width; ++j) {
-                // ignore walls
-                if (i == mi * room_width
-                        || i == mi * room_width + room_width - 1
-                        || j == mj * room_width
-                        || j == mj * room_width + room_width - 1)
-                    continue;
-                Map[i][j] = EMPTY;
+                Map[i][j] = FLOOR;
             }
         }
 
@@ -286,19 +270,19 @@ void room_gen()
         
         // walk towards door
         if (Graph[mi][mj].check_neighbor(DOWN)) {
-            for (int i = center_i; i < mi * room_width + room_width / 2; ++i)
+            for (int i = center_i; i < mi * room_width + room_width / 3 * 2; ++i)
                 Map[i][center_j] = FLOOR;
         }
         if (Graph[mi][mj].check_neighbor(UP)) {
-            for (int i = center_i; i > mi * room_width - room_width / 2; --i)
+            for (int i = center_i; i > mi * room_width - room_width / 3 * 2; --i)
                 Map[i][center_j] = FLOOR;
         }
         
         if (Graph[mi][mj].check_neighbor(RIGHT))
-            for (int j = center_j; j < mj * room_width + room_width / 2; ++j)
+            for (int j = center_j; j < mj * room_width + room_width / 3 * 2; ++j)
                 Map[center_i][j] = FLOOR;
         if (Graph[mi][mj].check_neighbor(LEFT))
-            for (int j = center_j; j > mj * room_width - room_width / 2; --j)
+            for (int j = center_j; j > mj * room_width - room_width / 3 * 2; --j)
                 Map[center_i][j] = FLOOR;
         
         // draw surrounding border
@@ -308,7 +292,7 @@ void room_gen()
                     Map[i][j] = WALL;
             }
         }
-        Map[center_i][center_j] = '0' + Graph[mi][mj].index;
+        //Map[center_i][center_j] = '0' + Graph[mi][mj].index;
     };
 
     // for each node in the graph
@@ -318,13 +302,13 @@ void room_gen()
         }
     }
 
-    for (int i = 0; i < MAP_SIZE; ++i) {
+    /*for (int i = 0; i < MAP_SIZE; ++i) {
         printf("\n");
         for (int j = 0; j < MAP_SIZE; ++j) {
             printf("%c", (char)Map[i][j]);
         }
     }
-    printf("\n");
+    printf("\n");*/
 }
 
 /******************************************************************************
@@ -332,12 +316,10 @@ void room_gen()
  * 
  */
 
-void rogue_setup(pse::Context& ctx)
-{
-    room_gen();
-}
+void draw_graph(pse::Context& ctx);
+void draw_map(pse::Context& ctx);
 
-void rogue_update(pse::Context& ctx)
+void draw_graph(pse::Context& ctx)
 {
     auto draw_room = [&](int i, int j) {
         SDL_Color c;
@@ -396,9 +378,6 @@ void rogue_update(pse::Context& ctx)
         }
     };
 
-    if (ctx.keystate[SDL_SCANCODE_SPACE])
-        room_gen();
-
     // draw rooms
     for (int i = 0; i < MAP_GRID; ++i) {
         for (int j = 0; j < MAP_GRID; ++j) {
@@ -413,6 +392,39 @@ void rogue_update(pse::Context& ctx)
             draw_doors(i, j);
         }
     }
+}
+
+void draw_map(pse::Context& ctx)
+{
+    int w = MAP_SCALING / 10;
+    for (int i = 0; i < MAP_SIZE; ++i) {
+        for (int j = 0; j < MAP_SIZE; ++j) {
+            SDL_Color c;
+            switch (Map[i][j]) {
+                case WALL: c  = pse::Dark; break;
+                case FLOOR: c = pse::White; break;
+                case EMPTY: c = pse::Black; break;
+                default:
+                    c = pse::Magenta;
+            }
+            pse::rect_fill(ctx.renderer, c, SDL_Rect{
+                j * w, i * w, w, w
+            });
+        }
+    }
+}
+
+void rogue_setup(pse::Context& ctx)
+{
+    room_gen();
+}
+
+void rogue_update(pse::Context& ctx)
+{
+    if (ctx.keystate[SDL_SCANCODE_SPACE])
+        room_gen();
+
+    draw_map(ctx);
 }
 
 }
