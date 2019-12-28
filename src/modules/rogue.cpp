@@ -1,6 +1,7 @@
 #include "../modules.hpp"
 
 #include <cstdio>
+#include <time.h>
 
 namespace Modules {
 
@@ -12,6 +13,12 @@ constexpr unsigned MAX_NEIGHBORS = 4;
 constexpr int MAP_GRID = 6;
 constexpr int MAP_SIZE = 60;    // ~10x MAP_GRID
 constexpr int MAP_SCALING = 60;
+// the number of tiles square of each room
+constexpr int ROOM_WIDTH = MAP_SIZE / MAP_GRID - 1;
+constexpr int ROOM_TOLERANCE = ROOM_WIDTH / 2;
+
+constexpr int SQ_WIDTH = MAP_SCALING / 7;
+constexpr int PLAYER_MOVE_COOLDOWN = 50; // milliseconds
 
 /**
  * Definitions
@@ -67,6 +74,52 @@ Room Graph[MAP_GRID][MAP_GRID];
 int Map[MAP_SIZE][MAP_SIZE];
 int start_i, start_j, end_i, end_j;
 
+int player_x, player_y;
+clock_t player_last_move = 0;
+
+/**
+ * Player movement
+ */
+
+void player_spawn();
+void player_move(int direction);
+
+void player_spawn()
+{
+    // spawn player at center of start_i/j room
+    player_y = start_i * ROOM_WIDTH + ROOM_WIDTH / 2;
+    player_x = start_j * ROOM_WIDTH + ROOM_WIDTH / 2;
+}
+
+void player_move(int direction)
+{
+    clock_t now = clock();
+    if (now - player_last_move < PLAYER_MOVE_COOLDOWN)
+        return;
+    
+    player_last_move = clock();
+
+    switch (direction) {
+        case UP:
+            if (Map[player_y - 1][player_x] == FLOOR)
+                player_y -= 1;
+            break;
+        case RIGHT:
+            if (Map[player_y][player_x + 1] == FLOOR)
+                player_x += 1;
+            break;
+        case DOWN:
+            if (Map[player_y + 1][player_x] == FLOOR)
+                player_y += 1;
+            break;
+        case LEFT:
+            if (Map[player_y][player_x - 1] == FLOOR)
+                player_x -= 1;
+            break;
+        default:
+            break;
+    }
+}
 
 /******************************************************************************
  * Room Generation
@@ -241,10 +294,6 @@ void room_gen()
         }
     }
 
-    // the number of tiles square of each room
-    int room_width = MAP_SIZE / MAP_GRID - 1;
-    int room_tolerance = room_width / 2;
-
     auto tile_gen = [&](int mi, int mj) {
 
         // ignore empty rooms
@@ -252,10 +301,10 @@ void room_gen()
             return;
 
         // room width and height from center of room
-        int room_w = rand_range(room_tolerance, room_width);
-        int room_h = rand_range(room_tolerance, room_width);
-        int room_y = mi * room_width;
-        int room_x = mj * room_width;
+        int room_w = rand_range(ROOM_TOLERANCE, ROOM_WIDTH);
+        int room_h = rand_range(ROOM_TOLERANCE, ROOM_WIDTH);
+        int room_y = mi * ROOM_WIDTH;
+        int room_x = mj * ROOM_WIDTH;
         int center_y = room_y + room_h / 2;
         int center_x = room_x + room_w / 2;
         
@@ -265,24 +314,24 @@ void room_gen()
             }
         }
 
-        int center_i = mi * room_width + room_width / 2;
-        int center_j = mj * room_width + room_width / 2;
+        int center_i = mi * ROOM_WIDTH + ROOM_WIDTH / 2;
+        int center_j = mj * ROOM_WIDTH + ROOM_WIDTH / 2;
         
         // walk towards door
         if (Graph[mi][mj].check_neighbor(DOWN)) {
-            for (int i = center_i; i < mi * room_width + room_width / 3 * 2; ++i)
+            for (int i = center_i; i < mi * ROOM_WIDTH + ROOM_WIDTH / 3 * 2; ++i)
                 Map[i][center_j] = FLOOR;
         }
         if (Graph[mi][mj].check_neighbor(UP)) {
-            for (int i = center_i; i > mi * room_width - room_width / 3 * 2; --i)
+            for (int i = center_i; i > mi * ROOM_WIDTH - ROOM_WIDTH / 3 * 2; --i)
                 Map[i][center_j] = FLOOR;
         }
         
         if (Graph[mi][mj].check_neighbor(RIGHT))
-            for (int j = center_j; j < mj * room_width + room_width / 3 * 2; ++j)
+            for (int j = center_j; j < mj * ROOM_WIDTH + ROOM_WIDTH / 3 * 2; ++j)
                 Map[center_i][j] = FLOOR;
         if (Graph[mi][mj].check_neighbor(LEFT))
-            for (int j = center_j; j > mj * room_width - room_width / 3 * 2; --j)
+            for (int j = center_j; j > mj * ROOM_WIDTH - ROOM_WIDTH / 3 * 2; --j)
                 Map[center_i][j] = FLOOR;
         
         // draw surrounding border
@@ -302,6 +351,9 @@ void room_gen()
         }
     }
 
+    // place player in the map
+    player_spawn();
+
     /*for (int i = 0; i < MAP_SIZE; ++i) {
         printf("\n");
         for (int j = 0; j < MAP_SIZE; ++j) {
@@ -318,6 +370,7 @@ void room_gen()
 
 void draw_graph(pse::Context& ctx);
 void draw_map(pse::Context& ctx);
+void draw_player(pse::Context& ctx);
 
 void draw_graph(pse::Context& ctx)
 {
@@ -396,22 +449,27 @@ void draw_graph(pse::Context& ctx)
 
 void draw_map(pse::Context& ctx)
 {
-    int w = MAP_SCALING / 10;
     for (int i = 0; i < MAP_SIZE; ++i) {
         for (int j = 0; j < MAP_SIZE; ++j) {
             SDL_Color c;
             switch (Map[i][j]) {
-                case WALL: c  = pse::Dark; break;
-                case FLOOR: c = pse::White; break;
-                case EMPTY: c = pse::Black; break;
-                default:
-                    c = pse::Magenta;
+                case WALL:   c = pse::Dark; break;
+                case FLOOR:  c = pse::White; break;
+                case EMPTY:  c = pse::Black; break;
+                default:     c = pse::Magenta;
             }
             pse::rect_fill(ctx.renderer, c, SDL_Rect{
-                j * w, i * w, w, w
+                j * SQ_WIDTH, i * SQ_WIDTH, SQ_WIDTH, SQ_WIDTH
             });
         }
     }
+}
+
+void draw_player(pse::Context& ctx)
+{
+    pse::rect_fill(ctx.renderer, pse::Red, SDL_Rect{
+        player_x * SQ_WIDTH, player_y * SQ_WIDTH, SQ_WIDTH, SQ_WIDTH
+    });
 }
 
 void rogue_setup(pse::Context& ctx)
@@ -424,7 +482,17 @@ void rogue_update(pse::Context& ctx)
     if (ctx.keystate[SDL_SCANCODE_SPACE])
         room_gen();
 
+    if (ctx.keystate[SDL_SCANCODE_W])
+        player_move(UP);
+    else if (ctx.keystate[SDL_SCANCODE_D])
+        player_move(RIGHT);
+    else if (ctx.keystate[SDL_SCANCODE_S])
+        player_move(DOWN);
+    else if (ctx.keystate[SDL_SCANCODE_A])
+        player_move(LEFT);
+
     draw_map(ctx);
+    draw_player(ctx);
 }
 
 }
