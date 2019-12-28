@@ -28,6 +28,7 @@ enum BuildingBlocks {
     WALL = '#',
     FLOOR = '.',
     EMPTY = ' ',
+    STAIR = '%',
 };
 
 enum Directions {
@@ -75,6 +76,7 @@ int Map[MAP_SIZE][MAP_SIZE];
 int start_i, start_j, end_i, end_j;
 
 int player_x, player_y;
+int stair_x, stair_y;
 clock_t player_last_move = 0;
 
 /**
@@ -101,19 +103,23 @@ void player_move(int direction)
 
     switch (direction) {
         case UP:
-            if (Map[player_y - 1][player_x] == FLOOR)
+            if (Map[player_y - 1][player_x] == FLOOR
+                    || Map[player_y - 1][player_x] == STAIR)
                 player_y -= 1;
             break;
         case RIGHT:
-            if (Map[player_y][player_x + 1] == FLOOR)
+            if (Map[player_y][player_x + 1] == FLOOR
+                    || Map[player_y][player_x + 1] == STAIR)
                 player_x += 1;
             break;
         case DOWN:
-            if (Map[player_y + 1][player_x] == FLOOR)
+            if (Map[player_y + 1][player_x] == FLOOR
+                    || Map[player_y + 1][player_x] == STAIR)
                 player_y += 1;
             break;
         case LEFT:
-            if (Map[player_y][player_x - 1] == FLOOR)
+            if (Map[player_y][player_x - 1] == FLOOR
+                    || Map[player_y][player_x - 1] == STAIR)
                 player_x -= 1;
             break;
         default:
@@ -354,6 +360,12 @@ void room_gen()
     // place player in the map
     player_spawn();
 
+    // place stairs
+    stair_x = end_j * ROOM_WIDTH + ROOM_WIDTH / 2;
+    stair_y = end_i * ROOM_WIDTH + ROOM_WIDTH / 2;
+    Map[stair_y][stair_x] = STAIR;
+
+
     /*for (int i = 0; i < MAP_SIZE; ++i) {
         printf("\n");
         for (int j = 0; j < MAP_SIZE; ++j) {
@@ -453,10 +465,11 @@ void draw_map(pse::Context& ctx)
         for (int j = 0; j < MAP_SIZE; ++j) {
             SDL_Color c;
             switch (Map[i][j]) {
-                case WALL:   c = pse::Dark; break;
-                case FLOOR:  c = pse::White; break;
-                case EMPTY:  c = pse::Black; break;
-                default:     c = pse::Magenta;
+                case WALL:  c = pse::Dark; break;
+                case FLOOR: c = pse::White; break;
+                case EMPTY: c = pse::Black; break;
+                case STAIR: c = pse::Orange; break;
+                default:    c = pse::Magenta;
             }
             pse::rect_fill(ctx.renderer, c, SDL_Rect{
                 j * SQ_WIDTH, i * SQ_WIDTH, SQ_WIDTH, SQ_WIDTH
@@ -493,6 +506,9 @@ void rogue_update(pse::Context& ctx)
 
     draw_map(ctx);
     draw_player(ctx);
+
+    if (player_x == stair_x && player_y == stair_y)
+        room_gen();
 }
 
 }

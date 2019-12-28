@@ -1,6 +1,7 @@
 #include <cstdio>
 #include <chrono>
 #include <thread>
+#include <time.h>
 
 #include "context.hpp"
 #include "draw.hpp"
@@ -36,6 +37,8 @@ Context::Context(const char* title, int w, int h, unsigned fps,
     /**
      * Utility
      */
+
+    srand(time(0));
 
     auto time_now = []() {
         return std::chrono::high_resolution_clock::now();
