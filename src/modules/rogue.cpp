@@ -60,16 +60,6 @@ struct Room {
         }
         return false;
     }
-    void print() {
-        for (int i = 0; i < index; ++i) {
-            switch (neighbors[i]) {
-                case UP:    printf("Up ");    break;
-                case RIGHT: printf("Right "); break;
-                case DOWN:  printf("Down ");  break;
-                case LEFT:  printf("Left ");  break;
-            }
-        }
-    }
 };
 
 /**
@@ -85,19 +75,71 @@ int Stair_x, Stair_y; // map index of stair
 clock_t PlayerLastMove = 0; // last movement for cooldown
 
 /**
- * Player movement
+ * Debug
  */
 
-void player_spawn(); // spawn player at center of Start_i/j
-bool player_check_tile(int offset_x, int offset_y); // check if the player_x/y + offset_x/y is on a walkable tile
-void player_move(int direction); // move the player, ensures the tile to walk upon is walkable, else no movement
+void debug_print_map();
+void debug_print_room(Room& self);
 
-void player_spawn()
+void debug_print_map()
+{
+    for (int i = 0; i < MAP_SIZE; ++i) {
+        printf("\n");
+        for (int j = 0; j < MAP_SIZE; ++j) {
+            printf("%c", (char)Map[i][j]);
+        }
+    }
+    printf("\n");
+}
+
+void debug_print_room(Room& self)
+{
+    for (int i = 0; i < self.index; ++i) {
+        switch (self.neighbors[i]) {
+            case UP:    printf("Up ");    break;
+            case RIGHT: printf("Right "); break;
+            case DOWN:  printf("Down ");  break;
+            case LEFT:  printf("Left ");  break;
+        }
+    }
+}
+
+/**
+ * Spawn entities
+ */
+
+void spawn_entities(); // spawn all entities onto the Map
+void spawn_player(); // spawn player at center of Start_i/j
+void spawn_stairs(); // spawn stairs at center of End_i/j
+
+// TODO: Make entities exist seperately than the Map tiles
+
+void spawn_entities()
+{
+    spawn_player();
+    spawn_stairs();
+}
+
+void spawn_player()
 {
     // spawn player at center of start_i/j room
     Player_y = Start_i * ROOM_WIDTH + ROOM_WIDTH / 2;
     Player_x = Start_j * ROOM_WIDTH + ROOM_WIDTH / 2;
 }
+
+void spawn_stairs()
+{
+    Stair_x = End_j * ROOM_WIDTH + ROOM_WIDTH / 2;
+    Stair_y = End_i * ROOM_WIDTH + ROOM_WIDTH / 2;
+    Map[Stair_y][Stair_x] = STAIR;
+}
+
+/**
+ * Player movement
+ */
+
+bool player_check_tile(int offset_x, int offset_y); // check if the player_x/y + offset_x/y is on a walkable tile
+void player_move(int direction); // move the player, ensures the tile to walk upon is walkable, else no movement
 
 bool player_check_tile(int offset_x, int offset_y)
 {
@@ -137,8 +179,8 @@ void player_move(int direction)
  */
 
 void gen_graph(); // generate a set of rooms from globals, write data structure into the global 'Graph'
-bool has_unconnected_neighbors(int i, int j);  // return true if a room has at least 1 unconnected neighbor
-bool room_try_connect(int *out_direction, int i, int j); // use try_insert fns to randomly connect a room
+bool graph_has_unconnected_neighbors_at(int i, int j);  // return true if a room has at least 1 unconnected neighbor
+bool room_try_insert(int *out_direction, int i, int j); // use try_insert fns to randomly connect a room
 bool up_try_insert(int i, int j);    // try to make room connection up, return false on fail
 bool right_try_insert(int i, int j); // try to make room connection right, return false on fail
 bool down_try_insert(int i, int j);  // try to make room connection down, return false on fail
@@ -187,7 +229,7 @@ bool left_try_insert(int i, int j)
     return false;
 }
 
-bool room_try_connect(int *out_direction, int i, int j)
+bool room_try_insert(int *out_direction, int i, int j)
 {
     // randomly select a direction that was not yet chosen
     do {
@@ -208,7 +250,7 @@ bool room_try_connect(int *out_direction, int i, int j)
     // out variable direction can be recorded
 };
 
-bool has_unconnected_neighbors(int i, int j)
+bool graph_has_unconnected_neighbors_at(int i, int j)
 {
     bool connected = false;
 
@@ -237,11 +279,11 @@ void gen_graph()
     Start_i = curr_i; Start_j = curr_j;
 
     // connect unconnected neighbors, change the state of direction
-    int direction; // direction is modified within room_try_connect
+    int direction; // direction is modified within room_try_insert
 
     // random walk across the graph until blocked or finished (no backtracking)
-    while (has_unconnected_neighbors(curr_i, curr_j)) {
-        if (room_try_connect(&direction, curr_i, curr_j)) {
+    while (graph_has_unconnected_neighbors_at(curr_i, curr_j)) {
+        if (room_try_insert(&direction, curr_i, curr_j)) {
             switch (direction) {
                 case UP:    curr_i -= 1; break;
                 case RIGHT: curr_j += 1; break;
@@ -262,7 +304,7 @@ void gen_graph()
             if (!Graph[i][j].is_connected) {
                 int tries = 0;
                 while (Graph[i][j].index < 2) {
-                    room_try_connect(&direction, i, j);
+                    room_try_insert(&direction, i, j);
                     if (tries++ > ROOM_CONNECT_TRIES)
                         break;
                 }
@@ -281,75 +323,59 @@ void gen_map()
     }
 
     // draw rooms and their doors for each node in the graph into the Map
-    for (int mi = 0; mi < GRAPH_SIZE; ++mi) {
-        for (int mj = 0; mj < GRAPH_SIZE; ++mj) {
+    for (int i = 0; i < GRAPH_SIZE; ++i) {
+        for (int j = 0; j < GRAPH_SIZE; ++j) {
             // ignore empty nodes
-            if (Graph[mi][mj].index == 0)
+            if (Graph[i][j].index == 0)
                 continue;
 
             // random room width and height relative to the map
             int room_w = rand_range(ROOM_TOLERANCE, ROOM_WIDTH);
             int room_h = rand_range(ROOM_TOLERANCE, ROOM_WIDTH);
-            int room_i = mi * ROOM_WIDTH;
-            int room_j = mj * ROOM_WIDTH;
-            int center_i = mi * ROOM_WIDTH + ROOM_WIDTH / 2;
-            int center_j = mj * ROOM_WIDTH + ROOM_WIDTH / 2;
+            int room_i = i * ROOM_WIDTH;
+            int room_j = j * ROOM_WIDTH;
+            int center_i = i * ROOM_WIDTH + ROOM_WIDTH / 2;
+            int center_j = j * ROOM_WIDTH + ROOM_WIDTH / 2;
 
             // fill room area with floor
-            for (int i = room_i; i < room_i + room_h; ++i) {
-                for (int j = room_j; j < room_j + room_w; ++j) {
-                    Map[i][j] = FLOOR;
+            for (int ri = room_i; ri < room_i + room_h; ++ri) {
+                for (int rj = room_j; rj < room_j + room_w; ++rj) {
+                    Map[ri][rj] = FLOOR;
                 }
             }
 
             // walk towards door in each direction from room center if it has a door that way
-            if (Graph[mi][mj].check_neighbor(DOWN)) {
-                for (int i = center_i; i < mi * ROOM_WIDTH + ROOM_WIDTH * ROOM_PATH_MODIFIER; ++i)
-                    Map[i][center_j] = FLOOR;
+            if (Graph[i][j].check_neighbor(DOWN)) {
+                for (int ci = center_i; ci < i * ROOM_WIDTH + ROOM_WIDTH * ROOM_PATH_MODIFIER; ++ci)
+                    Map[ci][center_j] = FLOOR;
             }
-            if (Graph[mi][mj].check_neighbor(UP)) {
-                for (int i = center_i; i > mi* ROOM_WIDTH - ROOM_WIDTH * ROOM_PATH_MODIFIER; --i)
-                    Map[i][center_j] = FLOOR;
+            if (Graph[i][j].check_neighbor(UP)) {
+                for (int ci = center_i; ci > i* ROOM_WIDTH - ROOM_WIDTH * ROOM_PATH_MODIFIER; --ci)
+                    Map[ci][center_j] = FLOOR;
             }
-            if (Graph[mi][mj].check_neighbor(RIGHT))
-                for (int j = center_j; j < mj * ROOM_WIDTH + ROOM_WIDTH * ROOM_PATH_MODIFIER; ++j)
+            if (Graph[i][j].check_neighbor(RIGHT))
+                for (int cj = center_j; cj < j * ROOM_WIDTH + ROOM_WIDTH * ROOM_PATH_MODIFIER; ++cj)
                     Map[center_i][j] = FLOOR;
-            if (Graph[mi][mj].check_neighbor(LEFT))
-                for (int j = center_j; j > mj* ROOM_WIDTH - ROOM_WIDTH * ROOM_PATH_MODIFIER; --j)
-                    Map[center_i][j] = FLOOR;
-
-            // draw surrounding border wall around entire map
-            for (int i = 0; i < MAP_SIZE; ++i) {
-                for (int j = 0; j < MAP_SIZE; ++j) {
-                    if (i == 0 || i == MAP_SIZE - 1 || j == 0 || j == MAP_SIZE - 1)
-                        Map[i][j] = WALL;
-                }
-            }
+            if (Graph[i][j].check_neighbor(LEFT))
+                for (int cj = center_j; cj > j* ROOM_WIDTH - ROOM_WIDTH * ROOM_PATH_MODIFIER; --cj)
+                    Map[center_i][cj] = FLOOR;
         }
     }
 
-    // place player in the map
-    player_spawn();
-
-    // place stairs
-    Stair_x = End_j * ROOM_WIDTH + ROOM_WIDTH / 2;
-    Stair_y = End_i * ROOM_WIDTH + ROOM_WIDTH / 2;
-    Map[Stair_y][Stair_x] = STAIR;
-
-
-    /*for (int i = 0; i < MAP_SIZE; ++i) {
-        printf("\n");
+    // draw surrounding border wall around entire map
+    for (int i = 0; i < MAP_SIZE; ++i) {
         for (int j = 0; j < MAP_SIZE; ++j) {
-            printf("%c", (char)Map[i][j]);
+            if (i == 0 || i == MAP_SIZE - 1 || j == 0 || j == MAP_SIZE - 1)
+                Map[i][j] = WALL;
         }
     }
-    printf("\n");*/
 }
 
 void gen_floor()
 {
     gen_graph();
     gen_map();
+    spawn_entities();
 }
 
 /******************************************************************************

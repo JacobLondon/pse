@@ -9,6 +9,7 @@ Debug/
 
 *.o
 *.obj
+pse
 
 # allow for includes
 !/lib/x64
