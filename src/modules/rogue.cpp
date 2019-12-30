@@ -16,6 +16,7 @@ constexpr int MAP_SCALING = 60;
 // the number of tiles square of each room
 constexpr int ROOM_WIDTH = MAP_SIZE / MAP_GRID - 1;
 constexpr int ROOM_TOLERANCE = ROOM_WIDTH / 2;
+constexpr int ROOM_CONNECT_TRIES = 40;
 
 constexpr int SQ_WIDTH = MAP_SCALING / 7;
 constexpr int PLAYER_MOVE_COOLDOWN = 50; // milliseconds
@@ -149,18 +150,20 @@ void player_move(int direction)
  * 11. All done!
  */
 
-void room_gen(); // generate a set of rooms from globals, write data structure into the global 'Graph'
+void gen_graph(); // generate a set of rooms from globals, write data structure into the global 'Graph'
 bool unconnected_neighbors(Room *rooms, int i, int j);  // return true if a room has at least 1 unconnected neighbor
+bool room_try_connect(Room* rooms, int* direction, int i, int j); // use try_insert fns to randomly connect a room
 bool up_try_insert(Room *rooms, int i, int j);          // try to make room connection up, return false on fail
 bool right_try_insert(Room *rooms, int i, int j);       // try to make room connection right, return false on fail
 bool down_try_insert(Room *rooms, int i, int j);        // try to make room connection down, return false on fail
 bool left_try_insert(Room *rooms, int i, int j);        // try to make room connection left, return false on fail
 
+void gen_map(); // generate the map from the graph of the floor
+void gen_floor(); // generate entire floor from subroutines
+
 bool up_try_insert(Room *rooms, int i, int j)
 {
-    if (i - 1 >= 0
-        && rooms[(i - 1) * MAP_GRID + j].index < MAX_NEIGHBORS - 1
-        && !rooms[i * MAP_GRID + j].check_neighbor(UP))
+    if (i - 1 >= 0 && rooms[(i - 1) * MAP_GRID + j].index < MAX_NEIGHBORS - 1)
     {
         rooms[i * MAP_GRID + j].is_connected = true;
         rooms[i * MAP_GRID + j].insert_neighbor(UP);
@@ -173,9 +176,7 @@ bool up_try_insert(Room *rooms, int i, int j)
 
 bool right_try_insert(Room *rooms, int i, int j)
 {
-    if (j + 1 < MAP_GRID
-        && rooms[i * MAP_GRID + j + 1].index < MAX_NEIGHBORS - 1
-        && !rooms[i * MAP_GRID + j].check_neighbor(RIGHT))
+    if (j + 1 < MAP_GRID && rooms[i * MAP_GRID + j + 1].index < MAX_NEIGHBORS - 1)
     {
         rooms[i * MAP_GRID + j].is_connected = true;
         rooms[i * MAP_GRID + j].insert_neighbor(RIGHT);
@@ -188,9 +189,7 @@ bool right_try_insert(Room *rooms, int i, int j)
 
 bool down_try_insert(Room *rooms, int i, int j)
 {
-    if (i + 1 < MAP_GRID
-        && rooms[(i + 1) * MAP_GRID + j].index < MAX_NEIGHBORS - 1
-        && !rooms[i * MAP_GRID + j].check_neighbor(DOWN))
+    if (i + 1 < MAP_GRID && rooms[(i + 1) * MAP_GRID + j].index < MAX_NEIGHBORS - 1)
     {
         rooms[i * MAP_GRID + j].is_connected = true;
         rooms[i * MAP_GRID + j].insert_neighbor(DOWN);
@@ -203,9 +202,7 @@ bool down_try_insert(Room *rooms, int i, int j)
 
 bool left_try_insert(Room *rooms, int i, int j)
 {
-    if (j - 1 >= 0
-        && rooms[i * MAP_GRID + j - 1].index < MAX_NEIGHBORS - 1
-        && !rooms[i * MAP_GRID + j].check_neighbor(LEFT))
+    if (j - 1 >= 0 && rooms[i * MAP_GRID + j - 1].index < MAX_NEIGHBORS - 1)
     {
         rooms[i * MAP_GRID + j].is_connected = true;
         rooms[i * MAP_GRID + j].insert_neighbor(LEFT);
@@ -215,6 +212,24 @@ bool left_try_insert(Room *rooms, int i, int j)
     }
     return false;
 }
+
+bool room_try_connect(Room *rooms, int *direction, int i, int j) {
+
+    // randomly select a direction that was not chosen yet
+    do {
+        *direction = rand_range(0, MAX_NEIGHBORS);
+    } while (rooms[i * MAP_GRID + j].check_neighbor(*direction));
+
+    switch (*direction) {
+    case UP:    return up_try_insert(rooms, i, j);
+    case RIGHT: return right_try_insert(rooms, i, j);
+    case DOWN:  return down_try_insert(rooms, i, j);
+    case LEFT:  return left_try_insert(rooms, i, j);
+    default:
+        fprintf(stderr, "Error: Invalid room choice: %d\n", *direction);
+        exit(-1);
+    }
+};
 
 bool unconnected_neighbors(Room *rooms, int i, int j)
 {
@@ -229,59 +244,51 @@ bool unconnected_neighbors(Room *rooms, int i, int j)
     return connected;
 }
 
-void room_gen()
+void gen_graph()
 {
-    // 1. create the grid of empty rooms
+    // create an empty graph of rooms
     Room rooms[MAP_GRID * MAP_GRID];
     for (int i = 0; i < MAP_GRID * MAP_GRID; ++i) {
         rooms[i] = Room{};
     }
 
-    // 3. pick a random room to start with
+    // pick a random room to start with
     int curr_i = rand_range(0, MAP_GRID);
     int curr_j = rand_range(0, MAP_GRID);
     rooms[curr_i * MAP_GRID + curr_j].is_connected = true;
-    // record entry room
+    // record entry / spawn room
     start_i = curr_i; start_j = curr_j;
 
-    // 4. connect unconnected neighbors, change the state of direction
+    // connect unconnected neighbors, change the state of direction
     int direction;
-    auto room_try_connect = [&](int i, int j) {
-        direction = rand_range(0, MAX_NEIGHBORS);
-        switch (direction) {
-            case UP:    return up_try_insert(rooms, i, j);
-            case RIGHT: return right_try_insert(rooms, i, j);
-            case DOWN:  return down_try_insert(rooms, i, j);
-            case LEFT:  return left_try_insert(rooms, i, j);
-            default:
-                fprintf(stderr, "Error: Invalid room choice: %d\n", direction);
-                exit(-1);
-        }
-    };
 
     // change current room selection from chosen direction
     while (unconnected_neighbors(rooms, curr_i, curr_j)) {
-        if (room_try_connect(curr_i, curr_j)) {
+        if (room_try_connect(rooms, &direction, curr_i, curr_j)) {
             switch (direction) {
-                case UP:    curr_i -= 1; break;
-                case RIGHT: curr_j += 1; break;
-                case DOWN:  curr_i += 1; break;
-                case LEFT:  curr_j -= 1; break;
-                default:
-                    fprintf(stderr, "Error: Invalid room direction: %d\n", direction);
-                    exit(-1);
+            case UP:    curr_i -= 1; break;
+            case RIGHT: curr_j += 1; break;
+            case DOWN:  curr_i += 1; break;
+            case LEFT:  curr_j -= 1; break;
+            default:
+                fprintf(stderr, "Error: Invalid room direction: %d\n", direction);
+                exit(-1);
             }
         }
     }
     // record stair room
     end_i = curr_i; end_j = curr_j;
-    
-    // 5. connect any still unconnected rooms with at least 2 neighbors, prevent dead room connections
+
+    // connect any still unconnected rooms with at least 2 neighbors, prevent dead room connections
     for (int i = 0; i < MAP_GRID; ++i) {
         for (int j = 0; j < MAP_GRID; ++j) {
             if (!rooms[i * MAP_GRID + j].is_connected) {
-                while (rooms[i * MAP_GRID + j].index < 2)
-                    room_try_connect(i, j);
+                int tries = 0;
+                while (rooms[i * MAP_GRID + j].index < 2) {
+                    room_try_connect(rooms, &direction, i, j);
+                    if (tries++ > ROOM_CONNECT_TRIES)
+                        break;
+                }
             }
         }
     }
@@ -292,68 +299,62 @@ void room_gen()
             Graph[i][j] = rooms[i * MAP_GRID + j];
         }
     }
+}
 
-    // 8. Create map with rooms
+void gen_map()
+{
+    // Create map with rooms
     for (int i = 0; i < MAP_SIZE; ++i) {
         for (int j = 0; j < MAP_SIZE; ++j) {
             Map[i][j] = WALL;
         }
     }
 
-    auto tile_gen = [&](int mi, int mj) {
+    // draw rooms and their doors for each node in the graph
+    for (int mi = 0; mi < MAP_GRID; ++mi) {
+        for (int mj = 0; mj < MAP_GRID; ++mj) {
+            // ignore empty rooms
+            if (Graph[mi][mj].index == 0)
+                continue;
 
-        // ignore empty rooms
-        if (Graph[mi][mj].index == 0)
-            return;
+            // random room width and height relative to the map
+            int room_w = rand_range(ROOM_TOLERANCE, ROOM_WIDTH);
+            int room_h = rand_range(ROOM_TOLERANCE, ROOM_WIDTH);
+            int room_i = mi * ROOM_WIDTH;
+            int room_j = mj * ROOM_WIDTH;
+            int center_i = mi * ROOM_WIDTH + ROOM_WIDTH / 2;
+            int center_j = mj * ROOM_WIDTH + ROOM_WIDTH / 2;
 
-        // room width and height from center of room
-        int room_w = rand_range(ROOM_TOLERANCE, ROOM_WIDTH);
-        int room_h = rand_range(ROOM_TOLERANCE, ROOM_WIDTH);
-        int room_y = mi * ROOM_WIDTH;
-        int room_x = mj * ROOM_WIDTH;
-        int center_y = room_y + room_h / 2;
-        int center_x = room_x + room_w / 2;
-        
-        for (int i = room_y; i < room_y + room_h; ++i) {
-            for (int j = room_x; j < room_x + room_w; ++j) {
-                Map[i][j] = FLOOR;
+            // fill room area with floor
+            for (int i = room_i; i < room_i + room_h; ++i) {
+                for (int j = room_j; j < room_j + room_w; ++j) {
+                    Map[i][j] = FLOOR;
+                }
             }
-        }
 
-        int center_i = mi * ROOM_WIDTH + ROOM_WIDTH / 2;
-        int center_j = mj * ROOM_WIDTH + ROOM_WIDTH / 2;
-        
-        // walk towards door
-        if (Graph[mi][mj].check_neighbor(DOWN)) {
-            for (int i = center_i; i < mi * ROOM_WIDTH + ROOM_WIDTH / 3 * 2; ++i)
-                Map[i][center_j] = FLOOR;
-        }
-        if (Graph[mi][mj].check_neighbor(UP)) {
-            for (int i = center_i; i > mi * ROOM_WIDTH - ROOM_WIDTH / 3 * 2; --i)
-                Map[i][center_j] = FLOOR;
-        }
-        
-        if (Graph[mi][mj].check_neighbor(RIGHT))
-            for (int j = center_j; j < mj * ROOM_WIDTH + ROOM_WIDTH / 3 * 2; ++j)
-                Map[center_i][j] = FLOOR;
-        if (Graph[mi][mj].check_neighbor(LEFT))
-            for (int j = center_j; j > mj * ROOM_WIDTH - ROOM_WIDTH / 3 * 2; --j)
-                Map[center_i][j] = FLOOR;
-        
-        // draw surrounding border
-        for (int i = 0; i < MAP_SIZE; ++i) {
-            for (int j = 0; j < MAP_SIZE; ++j) {
-                if (i == 0 || i == MAP_SIZE - 1 || j == 0 || j == MAP_SIZE - 1)
-                    Map[i][j] = WALL;
+            // walk towards door in each direction from room center
+            if (Graph[mi][mj].check_neighbor(DOWN)) {
+                for (int i = center_i; i < mi * ROOM_WIDTH + ROOM_WIDTH / 3 * 2; ++i)
+                    Map[i][center_j] = FLOOR;
             }
-        }
-        //Map[center_i][center_j] = '0' + Graph[mi][mj].index;
-    };
+            if (Graph[mi][mj].check_neighbor(UP)) {
+                for (int i = center_i; i > mi* ROOM_WIDTH - ROOM_WIDTH / 3 * 2; --i)
+                    Map[i][center_j] = FLOOR;
+            }
+            if (Graph[mi][mj].check_neighbor(RIGHT))
+                for (int j = center_j; j < mj * ROOM_WIDTH + ROOM_WIDTH / 3 * 2; ++j)
+                    Map[center_i][j] = FLOOR;
+            if (Graph[mi][mj].check_neighbor(LEFT))
+                for (int j = center_j; j > mj* ROOM_WIDTH - ROOM_WIDTH / 3 * 2; --j)
+                    Map[center_i][j] = FLOOR;
 
-    // for each node in the graph
-    for (int i = 0; i < MAP_GRID; ++i) {
-        for (int j = 0; j < MAP_GRID; ++j) {
-            tile_gen(i, j);
+            // draw surrounding border wall around entire map
+            for (int i = 0; i < MAP_SIZE; ++i) {
+                for (int j = 0; j < MAP_SIZE; ++j) {
+                    if (i == 0 || i == MAP_SIZE - 1 || j == 0 || j == MAP_SIZE - 1)
+                        Map[i][j] = WALL;
+                }
+            }
         }
     }
 
@@ -373,6 +374,12 @@ void room_gen()
         }
     }
     printf("\n");*/
+}
+
+void gen_floor()
+{
+    gen_graph();
+    gen_map();
 }
 
 /******************************************************************************
@@ -487,13 +494,13 @@ void draw_player(pse::Context& ctx)
 
 void rogue_setup(pse::Context& ctx)
 {
-    room_gen();
+    gen_floor();
 }
 
 void rogue_update(pse::Context& ctx)
 {
     if (ctx.keystate[SDL_SCANCODE_SPACE])
-        room_gen();
+        gen_floor();
 
     if (ctx.keystate[SDL_SCANCODE_W])
         player_move(UP);
@@ -508,7 +515,7 @@ void rogue_update(pse::Context& ctx)
     draw_player(ctx);
 
     if (player_x == stair_x && player_y == stair_y)
-        room_gen();
+        gen_floor();
 }
 
 }
