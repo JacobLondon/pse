@@ -1,7 +1,7 @@
 #include "../modules.hpp"
 
 #include <cstdio>
-#include <time.h>
+#include <ctime>
 
 namespace Modules {
 
@@ -9,24 +9,26 @@ namespace Modules {
  * Constants
  */
 
-constexpr unsigned MAX_NEIGHBORS = 4;
-constexpr int MAP_GRID = 6;
-constexpr int MAP_SIZE = 60;    // ~10x MAP_GRID
-constexpr int MAP_SCALING = 60;
+constexpr unsigned MAX_NEIGHBORS = 4; // Don't touch
+constexpr int GRAPH_SIZE = 6;
+constexpr int MAP_SIZE = 60;    // ~10x MAP_GRID is good
+
 // the number of tiles square of each room
-constexpr int ROOM_WIDTH = MAP_SIZE / MAP_GRID - 1;
+constexpr int ROOM_WIDTH = MAP_SIZE / GRAPH_SIZE - 1;
 constexpr int ROOM_TOLERANCE = ROOM_WIDTH / 2;
 constexpr int ROOM_CONNECT_TRIES = 40;
 #define ROOM_PATH_MODIFIER 2 / 3 /* INTENDS TO HAVE OPERATOR PRECEDENCE MAKE LHS RVALUE GREATER THAN RHS */
 
-constexpr int SQ_WIDTH = MAP_SCALING / 7;
+constexpr int TILE_SCALING = 60; // tile size modifier on SDL window
+constexpr int TILE_WIDTH = TILE_SCALING / 7;
+
 constexpr int PLAYER_MOVE_COOLDOWN = 50; // milliseconds
 
 /**
  * Definitions
  */
 
-enum BuildingBlocks {
+enum MapTiles {
     WALL = '#',
     FLOOR = '.',
     EMPTY = ' ',
@@ -74,7 +76,7 @@ struct Room {
  * Globals
  */
 
-Room Graph[MAP_GRID][MAP_GRID]; // graph nodes to generate a map from
+Room Graph[GRAPH_SIZE][GRAPH_SIZE]; // graph nodes to generate a map from
 int Map[MAP_SIZE][MAP_SIZE]; // floor plan of every tile on that floor
 int Start_i, Start_j, End_i, End_j; // graph locations of starting (spawn) and ending (stair) rooms
 
@@ -157,7 +159,7 @@ bool up_try_insert(int i, int j)
 
 bool right_try_insert(int i, int j)
 {
-    if (j + 1 < MAP_GRID && Graph[i][j + 1].index < MAX_NEIGHBORS - 1) {
+    if (j + 1 < GRAPH_SIZE && Graph[i][j + 1].index < MAX_NEIGHBORS - 1) {
         Graph[i][j].insert_neighbor(RIGHT);
         Graph[i][j + 1].insert_neighbor(LEFT);
         return true;
@@ -167,7 +169,7 @@ bool right_try_insert(int i, int j)
 
 bool down_try_insert(int i, int j)
 {
-    if (i + 1 < MAP_GRID && Graph[i + 1][j].index < MAX_NEIGHBORS - 1) {
+    if (i + 1 < GRAPH_SIZE && Graph[i + 1][j].index < MAX_NEIGHBORS - 1) {
         Graph[i][j].insert_neighbor(DOWN);
         Graph[i + 1][j].insert_neighbor(UP);
         return true;
@@ -192,6 +194,7 @@ bool room_try_connect(int *out_direction, int i, int j)
         *out_direction = rand_range(0, MAX_NEIGHBORS);
     } while (Graph[i][j].check_neighbor(*out_direction));
 
+    // attempt to connect to the direction
     switch (*out_direction) {
         case UP:    return up_try_insert(i, j);
         case RIGHT: return right_try_insert(i, j);
@@ -201,6 +204,8 @@ bool room_try_connect(int *out_direction, int i, int j)
             fprintf(stderr, "Error: Invalid room choice: %d\n", *out_direction);
             exit(-1);
     }
+
+    // out variable direction can be recorded
 };
 
 bool has_unconnected_neighbors(int i, int j)
@@ -208,10 +213,10 @@ bool has_unconnected_neighbors(int i, int j)
     bool connected = false;
 
     // bounds check before checking neighbors
-    if (i - 1 >= 0)       connected = connected || !Graph[i - 1][j].is_connected;
-    if (i + 1 < MAP_GRID) connected = connected || !Graph[i + 1][j].is_connected;
-    if (j - 1 >= 0)       connected = connected || !Graph[i][j - 1].is_connected;
-    if (j + 1 < MAP_GRID) connected = connected || !Graph[i][j + 1].is_connected;
+    if (i - 1 >= 0)         connected = connected || !Graph[i - 1][j].is_connected;
+    if (i + 1 < GRAPH_SIZE) connected = connected || !Graph[i + 1][j].is_connected;
+    if (j - 1 >= 0)         connected = connected || !Graph[i][j - 1].is_connected;
+    if (j + 1 < GRAPH_SIZE) connected = connected || !Graph[i][j + 1].is_connected;
     
     return connected;
 }
@@ -219,15 +224,15 @@ bool has_unconnected_neighbors(int i, int j)
 void gen_graph()
 {
     // clear global Graph
-    for (int i = 0; i < MAP_GRID; ++i) {
-        for (int j = 0; j < MAP_GRID; ++j) {
+    for (int i = 0; i < GRAPH_SIZE; ++i) {
+        for (int j = 0; j < GRAPH_SIZE; ++j) {
             Graph[i][j] = Room{};
         }
     }
 
     // pick a random room to start with (for random walk and player spawn)
-    int curr_i = rand_range(0, MAP_GRID);
-    int curr_j = rand_range(0, MAP_GRID);
+    int curr_i = rand_range(0, GRAPH_SIZE);
+    int curr_j = rand_range(0, GRAPH_SIZE);
     Graph[curr_i][curr_j].is_connected = true;
     Start_i = curr_i; Start_j = curr_j;
 
@@ -252,8 +257,8 @@ void gen_graph()
     End_i = curr_i; End_j = curr_j;
 
     // connect any still unconnected rooms with at least 2 neighbors, prevent dead room connections
-    for (int i = 0; i < MAP_GRID; ++i) {
-        for (int j = 0; j < MAP_GRID; ++j) {
+    for (int i = 0; i < GRAPH_SIZE; ++i) {
+        for (int j = 0; j < GRAPH_SIZE; ++j) {
             if (!Graph[i][j].is_connected) {
                 int tries = 0;
                 while (Graph[i][j].index < 2) {
@@ -268,16 +273,16 @@ void gen_graph()
 
 void gen_map()
 {
-    // Create map with rooms
+    // create map of just walls
     for (int i = 0; i < MAP_SIZE; ++i) {
         for (int j = 0; j < MAP_SIZE; ++j) {
             Map[i][j] = WALL;
         }
     }
 
-    // draw rooms and their doors for each node in the graph
-    for (int mi = 0; mi < MAP_GRID; ++mi) {
-        for (int mj = 0; mj < MAP_GRID; ++mj) {
+    // draw rooms and their doors for each node in the graph into the Map
+    for (int mi = 0; mi < GRAPH_SIZE; ++mi) {
+        for (int mj = 0; mj < GRAPH_SIZE; ++mj) {
             // ignore empty nodes
             if (Graph[mi][mj].index == 0)
                 continue;
@@ -370,42 +375,42 @@ void draw_graph(pse::Context& ctx)
             c = pse::Blue;
         
         pse::rect_fill(ctx.renderer, c, SDL_Rect{
-            i * MAP_SCALING + MAP_SCALING / 20,
-            j * MAP_SCALING + MAP_SCALING / 20,
-            MAP_SCALING - MAP_SCALING / 10,
-            MAP_SCALING - MAP_SCALING / 10});
+            i * TILE_SCALING + TILE_SCALING / 20,
+            j * TILE_SCALING + TILE_SCALING / 20,
+            TILE_SCALING - TILE_SCALING / 10,
+            TILE_SCALING - TILE_SCALING / 10});
     };
 
     auto draw_doors = [&](int i, int j) {
         for (int k = 0; k < Graph[i][j].index; ++k) {
-            int x = j * MAP_SCALING;
-            int y = i * MAP_SCALING;
-            int w = MAP_SCALING / 5;
+            int x = j * TILE_SCALING;
+            int y = i * TILE_SCALING;
+            int w = TILE_SCALING / 5;
             switch (Graph[i][j].neighbors[k]) {
                 case UP:
                     pse::rect_fill(ctx.renderer, pse::Purple, SDL_Rect{
-                        x + MAP_SCALING / 2 - w / 2,
+                        x + TILE_SCALING / 2 - w / 2,
                         y, w, w
                     });
                     break;
                 case RIGHT:
                     pse::rect_fill(ctx.renderer, pse::Purple, SDL_Rect{
-                        x + MAP_SCALING - w,
-                        y + MAP_SCALING / 2 - w / 2,
+                        x + TILE_SCALING - w,
+                        y + TILE_SCALING / 2 - w / 2,
                         w, w
                     });
                     break;
                 case DOWN:
                     pse::rect_fill(ctx.renderer, pse::Purple, SDL_Rect{
-                        x + MAP_SCALING / 2 - w / 2,
-                        y + MAP_SCALING - w,
+                        x + TILE_SCALING / 2 - w / 2,
+                        y + TILE_SCALING - w,
                         w, w
                     });
                     break;
                 case LEFT:
                     pse::rect_fill(ctx.renderer, pse::Purple, SDL_Rect{
                         x,
-                        y + MAP_SCALING / 2 - w / 2,
+                        y + TILE_SCALING / 2 - w / 2,
                         w, w
                     });
                     break;
@@ -416,16 +421,16 @@ void draw_graph(pse::Context& ctx)
     };
 
     // draw rooms
-    for (int i = 0; i < MAP_GRID; ++i) {
-        for (int j = 0; j < MAP_GRID; ++j) {
+    for (int i = 0; i < GRAPH_SIZE; ++i) {
+        for (int j = 0; j < GRAPH_SIZE; ++j) {
             draw_room(i, j);
             // can't put draw_doors here??????????????
             //draw_doors(i, j);
         }
     }
     // why can't this go above????
-    for (int i = 0; i < MAP_GRID; ++i) {
-        for (int j = 0; j < MAP_GRID; ++j) {
+    for (int i = 0; i < GRAPH_SIZE; ++i) {
+        for (int j = 0; j < GRAPH_SIZE; ++j) {
             draw_doors(i, j);
         }
     }
@@ -444,7 +449,7 @@ void draw_map(pse::Context& ctx)
                 default:    c = pse::Magenta;
             }
             pse::rect_fill(ctx.renderer, c, SDL_Rect{
-                j * SQ_WIDTH, i * SQ_WIDTH, SQ_WIDTH, SQ_WIDTH
+                j * TILE_WIDTH, i * TILE_WIDTH, TILE_WIDTH, TILE_WIDTH
             });
         }
     }
@@ -453,7 +458,7 @@ void draw_map(pse::Context& ctx)
 void draw_player(pse::Context& ctx)
 {
     pse::rect_fill(ctx.renderer, pse::Red, SDL_Rect{
-        Player_x * SQ_WIDTH, Player_y * SQ_WIDTH, SQ_WIDTH, SQ_WIDTH
+        Player_x * TILE_WIDTH, Player_y * TILE_WIDTH, TILE_WIDTH, TILE_WIDTH
     });
 }
 
