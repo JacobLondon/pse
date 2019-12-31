@@ -138,6 +138,7 @@ struct Entity {
 pse::Context *PSE_Context;
 
 Entity Player{};
+bool PlayerCanMove = true;
 Entity StairUp{}, StairDown{};
 Entity *Entities[ENTITY_MAX];
 int EntityIndex = 0;
@@ -615,16 +616,16 @@ void rogue_setup(pse::Context& ctx)
 
 void rogue_update(pse::Context& ctx)
 {
-    if (ctx.keystate[SDL_SCANCODE_SPACE])
+    if (ctx.check_key(SDL_SCANCODE_SPACE))
         gen_floor();
 
-    if (ctx.keystate[SDL_SCANCODE_W])
+    if (ctx.check_key_invalidate(SDL_SCANCODE_W))
         player_move(UP);
-    else if (ctx.keystate[SDL_SCANCODE_D])
+    else if (ctx.check_key_invalidate(SDL_SCANCODE_D))
         player_move(RIGHT);
-    else if (ctx.keystate[SDL_SCANCODE_S])
+    else if (ctx.check_key_invalidate(SDL_SCANCODE_S))
         player_move(DOWN);
-    else if (ctx.keystate[SDL_SCANCODE_A])
+    else if (ctx.check_key_invalidate(SDL_SCANCODE_A))
         player_move(LEFT);
 
     if (Player.map_x == StairDown.map_x && Player.map_y == StairDown.map_y)

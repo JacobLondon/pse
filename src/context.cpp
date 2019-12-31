@@ -102,4 +102,16 @@ Context::~Context()
     SDL_Quit();
 }
 
+bool Context::check_key(int sdl_scancode)
+{
+    return keystate[sdl_scancode];
+}
+
+bool Context::check_key_invalidate(int sdl_scancode)
+{
+    bool pressed = keystate[sdl_scancode];
+    keystate[sdl_scancode] = 0;
+    return pressed;
+}
+
 } // pse

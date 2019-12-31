@@ -29,6 +29,8 @@ struct Context {
     Context(const char *title, int w, int h, unsigned fps,
         void (*setup)(Context& ctx), void (*update)(Context& ctx));
     ~Context();
+    bool check_key(int sdl_scancode);
+    bool check_key_invalidate(int sdl_scancode);
 };
 
 } // pse
