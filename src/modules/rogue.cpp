@@ -17,7 +17,6 @@
 #include "../modules.hpp"
 
 #include <cstdio>
-#include <ctime>
 
 namespace Modules {
 
@@ -40,8 +39,6 @@ constexpr int TILE_SCALING = 60; // tile size modifier on SDL window
 constexpr int TILE_WIDTH = TILE_SCALING / 7;
 
 constexpr int ENTITY_MAX = 40; // maximum number of entities
-
-//constexpr int PLAYER_MOVE_COOLDOWN = 50; // milliseconds
 
 /**
  * Definitions
@@ -109,6 +106,7 @@ struct Entity {
     int graph_x, graph_y;
     int map_x, map_y;
     int id = -1;
+    int index;
 
     bool check_tile(int offset_x, int offset_y) {
         switch (Map[map_y + offset_y][map_x + offset_x]) {
@@ -193,17 +191,21 @@ void spawn_stairs(); // spawn stairs at center of End_i/j
 void entity_insert(Entity& e)
 {
     if (EntityIndex + 1 < ENTITY_MAX) {
+        e.index = EntityIndex;
         Entities[EntityIndex++] = &e;
     }
 }
 
 void spawn_entities()
 {
-    // clear entities
+    // stop looking at each entity
     for (int i = 0; i < ENTITY_MAX; ++i) {
         Entities[i] = nullptr;
     }
+    // reset
+    EntityIndex = 0;
 
+    // "permanent" entities
     spawn_player();
     spawn_stairs();
 }
@@ -382,6 +384,7 @@ void gen_graph()
             if (!Graph[i][j].is_connected) {
                 int tries = 0;
                 while (Graph[i][j].index < 2) {
+                    // direction still passed, but not needed
                     room_try_insert(&direction, i, j);
                     if (tries++ > ROOM_CONNECT_TRIES)
                         break;
@@ -462,7 +465,7 @@ void gen_floor()
 }
 
 /******************************************************************************
- * Drawing and PSE Interface
+ * Drawing
  * 
  */
 
@@ -578,8 +581,12 @@ void draw_entities()
 {
     // traverse backwards, make first inserted displayed on top
     for (int i = EntityIndex - 1; i >= 0; --i) {
-        if (!Entities[i])
+        if (!Entities[i]) {
+#ifdef DEBUG
+            printf("Invalid entity: %d\n", i);
+#endif
             break;
+        }
         
         SDL_Rect rect{ Entities[i]->map_x * TILE_WIDTH, Entities[i]->map_y * TILE_WIDTH, TILE_WIDTH, TILE_WIDTH };
         SDL_Color c;
@@ -594,6 +601,11 @@ void draw_entities()
         pse::rect_fill(PSE_Context->renderer, c, rect);
     }
 }
+
+/******************************************************************************
+ * PSE Interface
+ *
+ */
 
 void rogue_setup(pse::Context& ctx)
 {
