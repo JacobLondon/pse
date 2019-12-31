@@ -1,11 +1,6 @@
 /* 
  * TODO
  * 
- * Search file for misc TODOs...
- * 
- * Short Term:
- * Fn move_action: allow for different speed entities to move during the same turn
- * 
  * Long Term:
  *  Items
  *  Enemies
@@ -25,7 +20,7 @@ namespace Modules {
  */
 
 constexpr unsigned MAX_NEIGHBORS = 4; // Don't touch
-constexpr int GRAPH_SIZE = 5;
+constexpr int GRAPH_SIZE = 3;
 constexpr int MAP_SIZE = 60;    // ~10x MAP_GRID is good
 
 // the number of tiles square of each room
@@ -39,6 +34,8 @@ constexpr int TILE_SCALING = 60; // tile size modifier on SDL window
 constexpr int TILE_WIDTH = TILE_SCALING / 7;
 
 constexpr int ENTITY_MAX = 40; // maximum number of entities
+
+constexpr int FLOORS_MAX = 20; // maximum number of floors
 
 /**
  * Definitions
@@ -95,12 +92,21 @@ struct Room {
     }
 };
 
+struct Floor {
+    Room Graph[GRAPH_SIZE][GRAPH_SIZE]; // graph nodes to generate a map from
+    int Map[MAP_SIZE][MAP_SIZE]; // floor plan of every tile on that floor
+    int Start_i, Start_j, End_i, End_j; // graph locations of starting (spawn) and ending (stair) rooms
+    bool visited = false;
+};
+
 int map_to_graph_index(int index);
 int graph_to_map_index(int index);
 
-Room Graph[GRAPH_SIZE][GRAPH_SIZE]; // graph nodes to generate a map from
-int Map[MAP_SIZE][MAP_SIZE]; // floor plan of every tile on that floor
-int Start_i, Start_j, End_i, End_j; // graph locations of starting (spawn) and ending (stair) rooms
+Floor Dungeon[FLOORS_MAX];
+int FloorLevel = 0;
+int LastStairDirection = UP;
+
+#define FLR Dungeon[FloorLevel]
 
 struct Entity {
     int graph_x, graph_y;
@@ -109,7 +115,7 @@ struct Entity {
     int index;
 
     bool check_tile(int offset_x, int offset_y) {
-        switch (Map[map_y + offset_y][map_x + offset_x]) {
+        switch (FLR.Map[map_y + offset_y][map_x + offset_x]) {
             case FLOOR:
                 return true;
             default:
@@ -155,7 +161,7 @@ void debug_print_map()
     for (int i = 0; i < MAP_SIZE; ++i) {
         printf("\n");
         for (int j = 0; j < MAP_SIZE; ++j) {
-            printf("%c", (char)Map[i][j]);
+            printf("%c", (char)FLR.Map[i][j]);
         }
     }
     printf("\n");
@@ -163,7 +169,7 @@ void debug_print_map()
 
 void debug_print_player()
 {
-    printf("(%d, %d)\n", Player.graph_x, Player.graph_y);
+    printf("(%d, %d) -> (%d, %d)\n", Player.graph_x, Player.graph_y, Player.map_x, Player.map_y);
 }
 
 /**
@@ -213,29 +219,41 @@ void spawn_entities()
 
 void spawn_player()
 {
-    // spawn player at center of start_i/j room
-    Player.map_y = graph_to_map_index(Start_i);
-    Player.map_x = graph_to_map_index(Start_j);
-    Player.graph_y = Start_i;
-    Player.graph_x = Start_j;
+    // spawn player at last stair taken
+    if (LastStairDirection == UP) {
+        Player.map_y = graph_to_map_index(FLR.Start_i);
+        Player.map_x = graph_to_map_index(FLR.Start_j);
+        Player.graph_y = FLR.Start_i;
+        Player.graph_x = FLR.Start_j;
+    }
+    else if (LastStairDirection == DOWN) {
+        Player.map_y = graph_to_map_index(FLR.End_i);
+        Player.map_x = graph_to_map_index(FLR.End_j);
+        Player.graph_y = FLR.End_i;
+        Player.graph_x = FLR.End_j;
+    }
+    else {
+        fprintf(stderr, "Error: Invalid stair direction %d\n", LastStairDirection);
+        exit(-1);
+    }
     Player.id = ID_PLAYER;
-    Graph[Player.graph_y][Player.graph_x].is_explored = true;
+    FLR.Graph[Player.graph_y][Player.graph_x].is_explored = true;
 
     entity_insert(Player);
 }
 
 void spawn_stairs()
 {
-    StairDown.graph_x = End_j;
-    StairDown.graph_y = End_i;
-    StairDown.map_x = graph_to_map_index(End_j);
-    StairDown.map_y = graph_to_map_index(End_i);
+    StairDown.graph_x = FLR.End_j;
+    StairDown.graph_y = FLR.End_i;
+    StairDown.map_x = graph_to_map_index(FLR.End_j);
+    StairDown.map_y = graph_to_map_index(FLR.End_i);
     StairDown.id = ID_STAIR_DOWN;
 
-    StairUp.graph_x = Start_j;
-    StairUp.graph_y = Start_i;
-    StairUp.map_x = graph_to_map_index(Start_j);
-    StairUp.map_y = graph_to_map_index(Start_i);
+    StairUp.graph_x = FLR.Start_j;
+    StairUp.graph_y = FLR.Start_i;
+    StairUp.map_x = graph_to_map_index(FLR.Start_j);
+    StairUp.map_y = graph_to_map_index(FLR.Start_i);
     StairUp.id = ID_STAIR_UP;
 
     entity_insert(StairDown);
@@ -249,7 +267,7 @@ void spawn_stairs()
 void player_move(int direction)
 {
     Player.move(direction);
-    Graph[Player.graph_y][Player.graph_x].is_explored = true;
+    FLR.Graph[Player.graph_y][Player.graph_x].is_explored = true;
 }
 
 /******************************************************************************
@@ -269,12 +287,13 @@ bool left_try_insert(int i, int j);  // try to make room connection left, return
 
 void gen_map(); // generate the map from the graph of the floor
 void gen_floor(); // generate entire floor from subroutines
+void floor_switch(int direction); // switch to a different floor
 
 bool up_try_insert(int i, int j)
 {
-    if (i - 1 >= 0 && Graph[i - 1][j].index < MAX_NEIGHBORS - 1) {
-        Graph[i][j].insert_neighbor(UP);
-        Graph[i - 1][j].insert_neighbor(DOWN);
+    if (i - 1 >= 0 && FLR.Graph[i - 1][j].index < MAX_NEIGHBORS - 1) {
+        FLR.Graph[i][j].insert_neighbor(UP);
+        FLR.Graph[i - 1][j].insert_neighbor(DOWN);
         return true;
     }
     return false;
@@ -282,9 +301,9 @@ bool up_try_insert(int i, int j)
 
 bool right_try_insert(int i, int j)
 {
-    if (j + 1 < GRAPH_SIZE && Graph[i][j + 1].index < MAX_NEIGHBORS - 1) {
-        Graph[i][j].insert_neighbor(RIGHT);
-        Graph[i][j + 1].insert_neighbor(LEFT);
+    if (j + 1 < GRAPH_SIZE && FLR.Graph[i][j + 1].index < MAX_NEIGHBORS - 1) {
+        FLR.Graph[i][j].insert_neighbor(RIGHT);
+        FLR.Graph[i][j + 1].insert_neighbor(LEFT);
         return true;
     }
     return false;
@@ -292,9 +311,9 @@ bool right_try_insert(int i, int j)
 
 bool down_try_insert(int i, int j)
 {
-    if (i + 1 < GRAPH_SIZE && Graph[i + 1][j].index < MAX_NEIGHBORS - 1) {
-        Graph[i][j].insert_neighbor(DOWN);
-        Graph[i + 1][j].insert_neighbor(UP);
+    if (i + 1 < GRAPH_SIZE && FLR.Graph[i + 1][j].index < MAX_NEIGHBORS - 1) {
+        FLR.Graph[i][j].insert_neighbor(DOWN);
+        FLR.Graph[i + 1][j].insert_neighbor(UP);
         return true;
     }
     return false;
@@ -302,9 +321,9 @@ bool down_try_insert(int i, int j)
 
 bool left_try_insert(int i, int j)
 {
-    if (j - 1 >= 0 && Graph[i][j - 1].index < MAX_NEIGHBORS - 1) {
-        Graph[i][j].insert_neighbor(LEFT);
-        Graph[i][j - 1].insert_neighbor(RIGHT);
+    if (j - 1 >= 0 && FLR.Graph[i][j - 1].index < MAX_NEIGHBORS - 1) {
+        FLR.Graph[i][j].insert_neighbor(LEFT);
+        FLR.Graph[i][j - 1].insert_neighbor(RIGHT);
         return true;
     }
     return false;
@@ -315,7 +334,7 @@ bool room_try_insert(int *out_direction, int i, int j)
     // randomly select a direction that was not yet chosen
     do {
         *out_direction = rand_range(0, MAX_NEIGHBORS);
-    } while (Graph[i][j].check_neighbor(*out_direction));
+    } while (FLR.Graph[i][j].check_neighbor(*out_direction));
 
     // attempt to connect to the direction
     switch (*out_direction) {
@@ -336,10 +355,10 @@ bool graph_has_unconnected_neighbors_at(int i, int j)
     bool connected = false;
 
     // bounds check before checking neighbors
-    if (i - 1 >= 0)         connected = connected || !Graph[i - 1][j].is_connected;
-    if (i + 1 < GRAPH_SIZE) connected = connected || !Graph[i + 1][j].is_connected;
-    if (j - 1 >= 0)         connected = connected || !Graph[i][j - 1].is_connected;
-    if (j + 1 < GRAPH_SIZE) connected = connected || !Graph[i][j + 1].is_connected;
+    if (i - 1 >= 0)         connected = connected || !FLR.Graph[i - 1][j].is_connected;
+    if (i + 1 < GRAPH_SIZE) connected = connected || !FLR.Graph[i + 1][j].is_connected;
+    if (j - 1 >= 0)         connected = connected || !FLR.Graph[i][j - 1].is_connected;
+    if (j + 1 < GRAPH_SIZE) connected = connected || !FLR.Graph[i][j + 1].is_connected;
     
     return connected;
 }
@@ -349,15 +368,15 @@ void gen_graph()
     // clear global Graph
     for (int i = 0; i < GRAPH_SIZE; ++i) {
         for (int j = 0; j < GRAPH_SIZE; ++j) {
-            Graph[i][j] = Room{};
+            FLR.Graph[i][j] = Room{};
         }
     }
 
     // pick a random room to start with (for random walk and player spawn)
     int curr_i = rand_range(0, GRAPH_SIZE);
     int curr_j = rand_range(0, GRAPH_SIZE);
-    Graph[curr_i][curr_j].is_connected = true;
-    Start_i = curr_i; Start_j = curr_j;
+    FLR.Graph[curr_i][curr_j].is_connected = true;
+    FLR.Start_i = curr_i; FLR.Start_j = curr_j;
 
     // connect unconnected neighbors, change the state of direction
     int direction; // direction is modified within room_try_insert
@@ -377,14 +396,14 @@ void gen_graph()
         }
     }
     // record stair room
-    End_i = curr_i; End_j = curr_j;
+    FLR.End_i = curr_i; FLR.End_j = curr_j;
 
     // connect any still unconnected rooms with at least 2 neighbors, prevent dead room connections
     for (int i = 0; i < GRAPH_SIZE; ++i) {
         for (int j = 0; j < GRAPH_SIZE; ++j) {
-            if (!Graph[i][j].is_connected) {
+            if (!FLR.Graph[i][j].is_connected) {
                 int tries = 0;
-                while (Graph[i][j].index < 2) {
+                while (FLR.Graph[i][j].index < 2) {
                     // direction still passed, but not needed
                     room_try_insert(&direction, i, j);
                     if (tries++ > ROOM_CONNECT_TRIES)
@@ -400,7 +419,7 @@ void gen_map()
     // create map of just walls
     for (int i = 0; i < MAP_SIZE; ++i) {
         for (int j = 0; j < MAP_SIZE; ++j) {
-            Map[i][j] = WALL;
+            FLR.Map[i][j] = WALL;
         }
     }
 
@@ -408,7 +427,7 @@ void gen_map()
     for (int i = 0; i < GRAPH_SIZE; ++i) {
         for (int j = 0; j < GRAPH_SIZE; ++j) {
             // ignore empty nodes
-            if (Graph[i][j].index == 0)
+            if (FLR.Graph[i][j].index == 0)
                 continue;
 
             // random room width and height relative to the map
@@ -426,26 +445,26 @@ void gen_map()
             // fill room area with floor
             for (int ri = room_i + room_h / ROOM_TOLERANCE; ri < room_i + room_h; ++ri) {
                 for (int rj = room_j + room_w / ROOM_TOLERANCE; rj < room_j + room_w; ++rj) {
-                    Map[ri][rj] = FLOOR;
+                    FLR.Map[ri][rj] = FLOOR;
                 }
             }
 
 create_corridor:
             // walk towards door in each direction from room center if it has a door that way
-            if (Graph[i][j].check_neighbor(DOWN)) {
+            if (FLR.Graph[i][j].check_neighbor(DOWN)) {
                 for (int ci = center_i; ci < i * ROOM_WIDTH + ROOM_WIDTH * ROOM_PATH_MODIFIER; ++ci)
-                    Map[ci][center_j] = FLOOR;
+                    FLR.Map[ci][center_j] = FLOOR;
             }
-            if (Graph[i][j].check_neighbor(UP)) {
+            if (FLR.Graph[i][j].check_neighbor(UP)) {
                 for (int ci = center_i; ci > i * ROOM_WIDTH - ROOM_WIDTH * ROOM_PATH_MODIFIER; --ci)
-                    Map[ci][center_j] = FLOOR;
+                    FLR.Map[ci][center_j] = FLOOR;
             }
-            if (Graph[i][j].check_neighbor(RIGHT))
+            if (FLR.Graph[i][j].check_neighbor(RIGHT))
                 for (int cj = center_j; cj < j * ROOM_WIDTH + ROOM_WIDTH * ROOM_PATH_MODIFIER; ++cj)
-                    Map[center_i][cj] = FLOOR;
-            if (Graph[i][j].check_neighbor(LEFT))
+                    FLR.Map[center_i][cj] = FLOOR;
+            if (FLR.Graph[i][j].check_neighbor(LEFT))
                 for (int cj = center_j; cj > j * ROOM_WIDTH - ROOM_WIDTH * ROOM_PATH_MODIFIER; --cj)
-                    Map[center_i][cj] = FLOOR;
+                    FLR.Map[center_i][cj] = FLOOR;
         }
     }
 
@@ -453,7 +472,7 @@ create_corridor:
     for (int i = 0; i < MAP_SIZE; ++i) {
         for (int j = 0; j < MAP_SIZE; ++j) {
             if (i == 0 || i == MAP_SIZE - 1 || j == 0 || j == MAP_SIZE - 1)
-                Map[i][j] = WALL;
+                FLR.Map[i][j] = WALL;
         }
     }
 }
@@ -462,7 +481,39 @@ void gen_floor()
 {
     gen_graph();
     gen_map();
+    FLR.visited = true;
     spawn_entities();
+}
+
+// TODO: Don't gen floor when going back down to a generated floor
+void floor_switch(int direction)
+{
+    switch (direction) {
+    case UP:
+        if (FloorLevel - 1 >= 0) {
+            FloorLevel--;
+            LastStairDirection = DOWN;
+        }
+        else
+            printf("No rooms above...\n");
+        break;
+    case DOWN:
+        if (FloorLevel + 1 < FLOORS_MAX) {
+            FloorLevel++;
+            LastStairDirection = UP;
+            if (!FLR.visited)
+                gen_floor();
+        }
+        else
+            printf("You've explored all rooms!\n");
+        break;
+    default:
+        fprintf(stderr, "Error: Invalid floor switch %d\n", direction);
+        exit(-1);
+    }
+    spawn_entities();
+
+    printf("Floor: %d\n", FloorLevel);
 }
 
 /******************************************************************************
@@ -497,11 +548,11 @@ void draw_graph()
 void draw_graph_room(int i, int j)
 {
     SDL_Color c;
-    if (i == Start_i && j == Start_j)
+    if (i == FLR.Start_i && j == FLR.Start_j)
         c = pse::Sky;
-    else if (i == End_i && j == End_j)
+    else if (i == FLR.End_i && j == FLR.End_j)
         c = pse::Orange;
-    else if (Graph[i][j].index == 0)
+    else if (FLR.Graph[i][j].index == 0)
         c = pse::Red;
     else
         c = pse::Blue;
@@ -515,10 +566,10 @@ void draw_graph_room(int i, int j)
 
 void draw_graph_doors(int i, int j)
 {
-    for (int k = 0; k < Graph[i][j].index; ++k) {
+    for (int k = 0; k < FLR.Graph[i][j].index; ++k) {
         int x = j * TILE_SCALING;
         int y = i * TILE_SCALING;
-        switch (Graph[i][j].neighbors[k]) {
+        switch (FLR.Graph[i][j].neighbors[k]) {
         case UP:
             pse::rect_fill(PSE_Context->renderer, pse::Purple, SDL_Rect{
                 x + TILE_SCALING / 2 - TILE_WIDTH / 2,
@@ -546,8 +597,6 @@ void draw_graph_doors(int i, int j)
                 TILE_WIDTH, TILE_WIDTH
                 });
             break;
-        default:
-            break;
         }
     }
 }
@@ -557,13 +606,13 @@ void draw_map()
     for (int i = 0; i < MAP_SIZE; ++i) {
         for (int j = 0; j < MAP_SIZE; ++j) {
             SDL_Color c;
-            switch (Map[i][j]) {
+            switch (FLR.Map[i][j]) {
                 case WALL: c = pse::Dark; break;
                 case FLOOR:
                     if (Player.graph_x == map_to_graph_index(j) && Player.graph_y == map_to_graph_index(i))
-                        c = pse::Aqua;
-                    else if (Graph[map_to_graph_index(i)][map_to_graph_index(j)].is_explored)
                         c = pse::White;
+                    else if (FLR.Graph[map_to_graph_index(i)][map_to_graph_index(j)].is_explored)
+                        c = pse::Gray;
                     else
                         c = pse::Dark;
                     break;
@@ -594,7 +643,12 @@ void draw_entities()
 
         switch (Entities[i]->id) {
             case ID_PLAYER:     c = pse::Red; break;
-            case ID_STAIR_DOWN: c = pse::Orange; break;
+            case ID_STAIR_DOWN:
+                if (FLR.Graph[StairDown.graph_y][StairDown.graph_x].is_explored)
+                    c = pse::Orange;
+                else
+                    c = pse::Dark;
+                break;
             case ID_STAIR_UP:   c = pse::Salmon; break;
             default:
                 c = pse::Magenta;
@@ -616,7 +670,7 @@ void rogue_setup(pse::Context& ctx)
 
 void rogue_update(pse::Context& ctx)
 {
-    if (ctx.check_key(SDL_SCANCODE_SPACE))
+    if (ctx.check_key(SDL_SCANCODE_LSHIFT))
         gen_floor();
 
     if (ctx.check_key_invalidate(SDL_SCANCODE_W))
@@ -628,11 +682,18 @@ void rogue_update(pse::Context& ctx)
     else if (ctx.check_key_invalidate(SDL_SCANCODE_A))
         player_move(LEFT);
 
-    if (Player.map_x == StairDown.map_x && Player.map_y == StairDown.map_y)
-        gen_floor();
+    if (Player.map_x == StairDown.map_x
+            && Player.map_y == StairDown.map_y
+            && ctx.check_key_invalidate(SDL_SCANCODE_SPACE))
+        floor_switch(DOWN);
+    else if (Player.map_x == StairUp.map_x
+            && Player.map_y == StairUp.map_y
+            && ctx.check_key_invalidate(SDL_SCANCODE_SPACE))
+        floor_switch(UP);
 
     draw_map();
     draw_entities();
+    //debug_print_player();
 }
 
 }
