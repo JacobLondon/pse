@@ -18,3 +18,4 @@ char* arg_get(int argc, char** argv, const char* arg);
  * Random stuff
  */
 int rand_range(int min, int max);
+float rand_uniform();

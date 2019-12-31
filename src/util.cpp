@@ -26,3 +26,8 @@ int rand_range(int min, int max)
 {
     return rand() % (max - min) + min;
 }
+
+float rand_uniform()
+{
+    return (float)rand() / (float)RAND_MAX;
+}

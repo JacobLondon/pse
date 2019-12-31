@@ -10,14 +10,15 @@ namespace Modules {
  */
 
 constexpr unsigned MAX_NEIGHBORS = 4; // Don't touch
-constexpr int GRAPH_SIZE = 6;
+constexpr int GRAPH_SIZE = 5;
 constexpr int MAP_SIZE = 60;    // ~10x MAP_GRID is good
 
 // the number of tiles square of each room
 constexpr int ROOM_WIDTH = MAP_SIZE / GRAPH_SIZE - 1;
 constexpr int ROOM_TOLERANCE = ROOM_WIDTH / 2;
-constexpr int ROOM_CONNECT_TRIES = 40;
+constexpr int ROOM_CONNECT_TRIES = 4;
 #define ROOM_PATH_MODIFIER 2 / 3 /* INTENDS TO HAVE OPERATOR PRECEDENCE MAKE LHS RVALUE GREATER THAN RHS */
+constexpr float ROOM_GONE_CHANCE = 0.05;
 
 constexpr int TILE_SCALING = 60; // tile size modifier on SDL window
 constexpr int TILE_WIDTH = TILE_SCALING / 7;
@@ -45,6 +46,7 @@ enum Directions {
 // graph node
 struct Room {
     bool is_connected = false;
+    bool is_explored = false;
     int index = 0;
     int neighbors[MAX_NEIGHBORS] = { 0 };
 
@@ -60,6 +62,16 @@ struct Room {
         }
         return false;
     }
+    void print() {
+        for (int i = 0; i < index; ++i) {
+            switch (neighbors[i]) {
+                case UP:    printf("Up ");    break;
+                case RIGHT: printf("Right "); break;
+                case DOWN:  printf("Down ");  break;
+                case LEFT:  printf("Left ");  break;
+            }
+        }
+    }
 };
 
 /**
@@ -71,15 +83,19 @@ int Map[MAP_SIZE][MAP_SIZE]; // floor plan of every tile on that floor
 int Start_i, Start_j, End_i, End_j; // graph locations of starting (spawn) and ending (stair) rooms
 
 int Player_x, Player_y; // map index of player
+int PlayerGraph_x, PlayerGraph_y; // graph index of player
 int Stair_x, Stair_y; // map index of stair
 clock_t PlayerLastMove = 0; // last movement for cooldown
 
 /**
- * Debug
+ * Debug and Util
  */
 
 void debug_print_map();
-void debug_print_room(Room& self);
+void debug_print_player();
+
+int map_to_graph_index(int index);
+int graph_to_map_index(int index);
 
 void debug_print_map()
 {
@@ -92,16 +108,19 @@ void debug_print_map()
     printf("\n");
 }
 
-void debug_print_room(Room& self)
+void debug_print_player()
 {
-    for (int i = 0; i < self.index; ++i) {
-        switch (self.neighbors[i]) {
-            case UP:    printf("Up ");    break;
-            case RIGHT: printf("Right "); break;
-            case DOWN:  printf("Down ");  break;
-            case LEFT:  printf("Left ");  break;
-        }
-    }
+    printf("(%d, %d)\n", PlayerGraph_x, PlayerGraph_y);
+}
+
+int map_to_graph_index(int index)
+{
+    return index / ROOM_WIDTH;
+}
+
+int graph_to_map_index(int index)
+{
+    return index * ROOM_WIDTH + ROOM_WIDTH / 2;
 }
 
 /**
@@ -123,14 +142,17 @@ void spawn_entities()
 void spawn_player()
 {
     // spawn player at center of start_i/j room
-    Player_y = Start_i * ROOM_WIDTH + ROOM_WIDTH / 2;
-    Player_x = Start_j * ROOM_WIDTH + ROOM_WIDTH / 2;
+    Player_y = graph_to_map_index(Start_i);
+    Player_x = graph_to_map_index(Start_j);
+    PlayerGraph_y = Start_i;
+    PlayerGraph_x = Start_j;
+    Graph[PlayerGraph_y][PlayerGraph_x].is_explored = true;
 }
 
 void spawn_stairs()
 {
-    Stair_x = End_j * ROOM_WIDTH + ROOM_WIDTH / 2;
-    Stair_y = End_i * ROOM_WIDTH + ROOM_WIDTH / 2;
+    Stair_x = graph_to_map_index(End_j);
+    Stair_y = graph_to_map_index(End_i);
     Map[Stair_y][Stair_x] = STAIR;
 }
 
@@ -169,6 +191,10 @@ void player_move(int direction)
         default:
             break;
     }
+
+    PlayerGraph_x = map_to_graph_index(Player_x);
+    PlayerGraph_y = map_to_graph_index(Player_y);
+    Graph[PlayerGraph_y][PlayerGraph_x].is_explored = true;
 }
 
 /******************************************************************************
@@ -337,27 +363,32 @@ void gen_map()
             int center_i = i * ROOM_WIDTH + ROOM_WIDTH / 2;
             int center_j = j * ROOM_WIDTH + ROOM_WIDTH / 2;
 
+            // skip filling room area if a gone room is to be used
+            if (rand_uniform() < ROOM_GONE_CHANCE)
+                goto create_corridor;
+
             // fill room area with floor
-            for (int ri = room_i; ri < room_i + room_h; ++ri) {
-                for (int rj = room_j; rj < room_j + room_w; ++rj) {
+            for (int ri = room_i + room_h / 4; ri < room_i + room_h; ++ri) {
+                for (int rj = room_j + room_w / 4; rj < room_j + room_w; ++rj) {
                     Map[ri][rj] = FLOOR;
                 }
             }
 
+create_corridor:
             // walk towards door in each direction from room center if it has a door that way
             if (Graph[i][j].check_neighbor(DOWN)) {
                 for (int ci = center_i; ci < i * ROOM_WIDTH + ROOM_WIDTH * ROOM_PATH_MODIFIER; ++ci)
                     Map[ci][center_j] = FLOOR;
             }
             if (Graph[i][j].check_neighbor(UP)) {
-                for (int ci = center_i; ci > i* ROOM_WIDTH - ROOM_WIDTH * ROOM_PATH_MODIFIER; --ci)
+                for (int ci = center_i; ci > i * ROOM_WIDTH - ROOM_WIDTH * ROOM_PATH_MODIFIER; --ci)
                     Map[ci][center_j] = FLOOR;
             }
             if (Graph[i][j].check_neighbor(RIGHT))
                 for (int cj = center_j; cj < j * ROOM_WIDTH + ROOM_WIDTH * ROOM_PATH_MODIFIER; ++cj)
-                    Map[center_i][j] = FLOOR;
+                    Map[center_i][cj] = FLOOR;
             if (Graph[i][j].check_neighbor(LEFT))
-                for (int cj = center_j; cj > j* ROOM_WIDTH - ROOM_WIDTH * ROOM_PATH_MODIFIER; --cj)
+                for (int cj = center_j; cj > j * ROOM_WIDTH - ROOM_WIDTH * ROOM_PATH_MODIFIER; --cj)
                     Map[center_i][cj] = FLOOR;
         }
     }
@@ -407,7 +438,7 @@ void draw_graph(pse::Context& ctx)
             TILE_SCALING - TILE_SCALING / 10});
     };
 
-    auto draw_doors = [&](int i, int j) {
+    auto draw_corridors = [&](int i, int j) {
         for (int k = 0; k < Graph[i][j].index; ++k) {
             int x = j * TILE_SCALING;
             int y = i * TILE_SCALING;
@@ -450,14 +481,14 @@ void draw_graph(pse::Context& ctx)
     for (int i = 0; i < GRAPH_SIZE; ++i) {
         for (int j = 0; j < GRAPH_SIZE; ++j) {
             draw_room(i, j);
-            // can't put draw_doors here??????????????
-            //draw_doors(i, j);
+            // can't put draw_corridors here??????????????
+            //draw_corridors(i, j);
         }
     }
     // why can't this go above????
     for (int i = 0; i < GRAPH_SIZE; ++i) {
         for (int j = 0; j < GRAPH_SIZE; ++j) {
-            draw_doors(i, j);
+            draw_corridors(i, j);
         }
     }
 }
@@ -468,11 +499,19 @@ void draw_map(pse::Context& ctx)
         for (int j = 0; j < MAP_SIZE; ++j) {
             SDL_Color c;
             switch (Map[i][j]) {
-                case WALL:  c = pse::Dark; break;
-                case FLOOR: c = pse::White; break;
+                case WALL: c = pse::Dark; break;
+                case FLOOR:
+                    if (PlayerGraph_x == map_to_graph_index(j) && PlayerGraph_y == map_to_graph_index(i))
+                        c = pse::Aqua;
+                    else if (Graph[map_to_graph_index(i)][map_to_graph_index(j)].is_explored)
+                        c = pse::White;
+                    else
+                        c = pse::Dark;
+                    break;
                 case EMPTY: c = pse::Black; break;
                 case STAIR: c = pse::Orange; break;
-                default:    c = pse::Magenta;
+                default:
+                    c = pse::Magenta;
             }
             pse::rect_fill(ctx.renderer, c, SDL_Rect{
                 j * TILE_WIDTH, i * TILE_WIDTH, TILE_WIDTH, TILE_WIDTH
@@ -507,11 +546,11 @@ void rogue_update(pse::Context& ctx)
     else if (ctx.keystate[SDL_SCANCODE_A])
         player_move(LEFT);
 
-    draw_map(ctx);
-    draw_player(ctx);
-
     if (Player_x == Stair_x && Player_y == Stair_y)
         gen_floor();
+
+    draw_map(ctx);
+    draw_player(ctx);
 }
 
 }
