@@ -1,3 +1,19 @@
+/* 
+ * TODO
+ * 
+ * Search file for misc TODOs...
+ * 
+ * Short Term:
+ * Fn move_action: allow for different speed entities to move during the same turn
+ * 
+ * Long Term:
+ *  Items
+ *  Enemies
+ *  Attacking
+ *  SC Key option menu
+ * 
+ */
+
 #include "../modules.hpp"
 
 #include <cstdio>
@@ -33,7 +49,8 @@ enum MapTiles {
     WALL = '#',
     FLOOR = '.',
     EMPTY = ' ',
-    STAIR = '%',
+    STAIR_DOWN = '>',
+    STAIR_UP = '<',
 };
 
 enum Directions {
@@ -127,6 +144,7 @@ int graph_to_map_index(int index)
  * Spawn entities
  */
 
+// TODO: Make entities into a struct (x, y, ...)
 void spawn_entities(); // spawn all entities onto the Map
 void spawn_player(); // spawn player at center of Start_i/j
 void spawn_stairs(); // spawn stairs at center of End_i/j
@@ -151,15 +169,19 @@ void spawn_player()
 
 void spawn_stairs()
 {
+    // TODO: Make stairs consistent, including locations and index tracking
     Stair_x = graph_to_map_index(End_j);
     Stair_y = graph_to_map_index(End_i);
-    Map[Stair_y][Stair_x] = STAIR;
+    Map[Stair_y][Stair_x] = STAIR_DOWN;
+
+    Map[graph_to_map_index(Start_i)][graph_to_map_index(Start_j)] = STAIR_UP;
 }
 
 /**
  * Player movement
  */
 
+// TODO: Make player things into a struct, a player has-an entity
 bool player_check_tile(int offset_x, int offset_y); // check if the player_x/y + offset_x/y is on a walkable tile
 void player_move(int direction); // move the player, ensures the tile to walk upon is walkable, else no movement
 
@@ -167,7 +189,8 @@ bool player_check_tile(int offset_x, int offset_y)
 {
     switch (Map[Player_y + offset_y][Player_x + offset_x]) {
         case FLOOR:
-        case STAIR:
+        case STAIR_DOWN:
+        case STAIR_UP:
             return true;
         default:
             return false;
@@ -180,6 +203,7 @@ void player_move(int direction)
     if (clock() - PlayerLastMove < PLAYER_MOVE_COOLDOWN)
         return;
     
+    // TODO: This will not do for a walking mechanism
     PlayerLastMove = clock();
 
     // move with bounds check
@@ -368,8 +392,8 @@ void gen_map()
                 goto create_corridor;
 
             // fill room area with floor
-            for (int ri = room_i + room_h / 4; ri < room_i + room_h; ++ri) {
-                for (int rj = room_j + room_w / 4; rj < room_j + room_w; ++rj) {
+            for (int ri = room_i + room_h / ROOM_TOLERANCE; ri < room_i + room_h; ++ri) {
+                for (int rj = room_j + room_w / ROOM_TOLERANCE; rj < room_j + room_w; ++rj) {
                     Map[ri][rj] = FLOOR;
                 }
             }
@@ -509,7 +533,8 @@ void draw_map(pse::Context& ctx)
                         c = pse::Dark;
                     break;
                 case EMPTY: c = pse::Black; break;
-                case STAIR: c = pse::Orange; break;
+                case STAIR_DOWN: c = pse::Orange; break;
+                case STAIR_UP: c = pse::Salmon; break;
                 default:
                     c = pse::Magenta;
             }
