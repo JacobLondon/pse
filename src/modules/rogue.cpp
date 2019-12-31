@@ -34,7 +34,6 @@ constexpr int TILE_SCALING = 60; // tile size modifier on SDL window
 constexpr int TILE_WIDTH = TILE_SCALING / 7;
 
 constexpr int ENTITY_MAX = 40; // maximum number of entities
-
 constexpr int FLOORS_MAX = 20; // maximum number of floors
 
 /**
@@ -485,7 +484,6 @@ void gen_floor()
     spawn_entities();
 }
 
-// TODO: Don't gen floor when going back down to a generated floor
 void floor_switch(int direction)
 {
     switch (direction) {
@@ -529,15 +527,12 @@ void draw_entities();
 
 void draw_graph()
 {
-    // draw rooms
+    // draw rooms and doors
     for (int i = 0; i < GRAPH_SIZE; ++i) {
         for (int j = 0; j < GRAPH_SIZE; ++j) {
             draw_graph_room(i, j);
-            // can't put draw_corridors here??????????????
-            //draw_corridors(i, j);
         }
     }
-    // why can't this go above????
     for (int i = 0; i < GRAPH_SIZE; ++i) {
         for (int j = 0; j < GRAPH_SIZE; ++j) {
             draw_graph_doors(i, j);
@@ -673,13 +668,17 @@ void rogue_update(pse::Context& ctx)
     if (ctx.check_key(SDL_SCANCODE_LSHIFT))
         gen_floor();
 
-    if (ctx.check_key_invalidate(SDL_SCANCODE_W))
+    if (ctx.check_key_invalidate(SDL_SCANCODE_K)
+            || ctx.check_key_invalidate(SDL_SCANCODE_UP))
         player_move(UP);
-    else if (ctx.check_key_invalidate(SDL_SCANCODE_D))
+    else if (ctx.check_key_invalidate(SDL_SCANCODE_L)
+            || ctx.check_key_invalidate(SDL_SCANCODE_RIGHT))
         player_move(RIGHT);
-    else if (ctx.check_key_invalidate(SDL_SCANCODE_S))
+    else if (ctx.check_key_invalidate(SDL_SCANCODE_J)
+            || ctx.check_key_invalidate(SDL_SCANCODE_DOWN))
         player_move(DOWN);
-    else if (ctx.check_key_invalidate(SDL_SCANCODE_A))
+    else if (ctx.check_key_invalidate(SDL_SCANCODE_H)
+            || ctx.check_key_invalidate(SDL_SCANCODE_LEFT))
         player_move(LEFT);
 
     if (Player.map_x == StairDown.map_x
