@@ -39,25 +39,32 @@ constexpr float ROOM_GONE_CHANCE = 0.05;
 constexpr int TILE_SCALING = 60; // tile size modifier on SDL window
 constexpr int TILE_WIDTH = TILE_SCALING / 7;
 
-constexpr int PLAYER_MOVE_COOLDOWN = 50; // milliseconds
+constexpr int ENTITY_MAX = 40; // maximum number of entities
+
+//constexpr int PLAYER_MOVE_COOLDOWN = 50; // milliseconds
 
 /**
  * Definitions
  */
 
-enum MapTiles {
+enum MapTile {
     WALL = '#',
     FLOOR = '.',
     EMPTY = ' ',
-    STAIR_DOWN = '>',
-    STAIR_UP = '<',
 };
 
-enum Directions {
+enum Direction {
     UP,
     RIGHT,
     DOWN,
     LEFT,
+};
+
+enum EntityId {
+    ID_INVALID = -1,
+    ID_PLAYER,
+    ID_STAIR_DOWN,
+    ID_STAIR_UP,
 };
 
 // graph node
@@ -91,28 +98,58 @@ struct Room {
     }
 };
 
-/**
- * Globals
- */
+int map_to_graph_index(int index);
+int graph_to_map_index(int index);
 
 Room Graph[GRAPH_SIZE][GRAPH_SIZE]; // graph nodes to generate a map from
 int Map[MAP_SIZE][MAP_SIZE]; // floor plan of every tile on that floor
 int Start_i, Start_j, End_i, End_j; // graph locations of starting (spawn) and ending (stair) rooms
 
-int Player_x, Player_y; // map index of player
-int PlayerGraph_x, PlayerGraph_y; // graph index of player
-int Stair_x, Stair_y; // map index of stair
-clock_t PlayerLastMove = 0; // last movement for cooldown
+struct Entity {
+    int graph_x, graph_y;
+    int map_x, map_y;
+    int id = -1;
+
+    bool check_tile(int offset_x, int offset_y) {
+        switch (Map[map_y + offset_y][map_x + offset_x]) {
+            case FLOOR:
+                return true;
+            default:
+                return false;
+        }
+    }
+    // move with bounds check
+    void move(int direction) {
+        switch (direction) {
+            case UP:    if (check_tile(0, -1)) map_y -= 1; break;
+            case RIGHT: if (check_tile(1, 0))  map_x += 1; break;
+            case DOWN:  if (check_tile(0, 1))  map_y += 1; break;
+            case LEFT:  if (check_tile(-1, 0)) map_x -= 1; break;
+            default:
+                break;
+            }
+        graph_x = map_to_graph_index(map_x);
+        graph_y = map_to_graph_index(map_y);
+    }
+};
 
 /**
- * Debug and Util
+ * Globals
+ */
+
+pse::Context *PSE_Context;
+
+Entity Player{};
+Entity StairUp{}, StairDown{};
+Entity *Entities[ENTITY_MAX];
+int EntityIndex = 0;
+
+/**
+ * Debug
  */
 
 void debug_print_map();
 void debug_print_player();
-
-int map_to_graph_index(int index);
-int graph_to_map_index(int index);
 
 void debug_print_map()
 {
@@ -127,8 +164,12 @@ void debug_print_map()
 
 void debug_print_player()
 {
-    printf("(%d, %d)\n", PlayerGraph_x, PlayerGraph_y);
+    printf("(%d, %d)\n", Player.graph_x, Player.graph_y);
 }
+
+/**
+ * Util
+ */
 
 int map_to_graph_index(int index)
 {
@@ -144,15 +185,25 @@ int graph_to_map_index(int index)
  * Spawn entities
  */
 
-// TODO: Make entities into a struct (x, y, ...)
+void entity_insert(Entity& e);
 void spawn_entities(); // spawn all entities onto the Map
 void spawn_player(); // spawn player at center of Start_i/j
 void spawn_stairs(); // spawn stairs at center of End_i/j
 
-// TODO: Make entities exist seperately than the Map tiles
+void entity_insert(Entity& e)
+{
+    if (EntityIndex + 1 < ENTITY_MAX) {
+        Entities[EntityIndex++] = &e;
+    }
+}
 
 void spawn_entities()
 {
+    // clear entities
+    for (int i = 0; i < ENTITY_MAX; ++i) {
+        Entities[i] = nullptr;
+    }
+
     spawn_player();
     spawn_stairs();
 }
@@ -160,65 +211,42 @@ void spawn_entities()
 void spawn_player()
 {
     // spawn player at center of start_i/j room
-    Player_y = graph_to_map_index(Start_i);
-    Player_x = graph_to_map_index(Start_j);
-    PlayerGraph_y = Start_i;
-    PlayerGraph_x = Start_j;
-    Graph[PlayerGraph_y][PlayerGraph_x].is_explored = true;
+    Player.map_y = graph_to_map_index(Start_i);
+    Player.map_x = graph_to_map_index(Start_j);
+    Player.graph_y = Start_i;
+    Player.graph_x = Start_j;
+    Player.id = ID_PLAYER;
+    Graph[Player.graph_y][Player.graph_x].is_explored = true;
+
+    entity_insert(Player);
 }
 
 void spawn_stairs()
 {
-    // TODO: Make stairs consistent, including locations and index tracking
-    Stair_x = graph_to_map_index(End_j);
-    Stair_y = graph_to_map_index(End_i);
-    Map[Stair_y][Stair_x] = STAIR_DOWN;
+    StairDown.graph_x = End_j;
+    StairDown.graph_y = End_i;
+    StairDown.map_x = graph_to_map_index(End_j);
+    StairDown.map_y = graph_to_map_index(End_i);
+    StairDown.id = ID_STAIR_DOWN;
 
-    Map[graph_to_map_index(Start_i)][graph_to_map_index(Start_j)] = STAIR_UP;
+    StairUp.graph_x = Start_j;
+    StairUp.graph_y = Start_i;
+    StairUp.map_x = graph_to_map_index(Start_j);
+    StairUp.map_y = graph_to_map_index(Start_i);
+    StairUp.id = ID_STAIR_UP;
+
+    entity_insert(StairDown);
+    entity_insert(StairUp);
 }
 
 /**
  * Player movement
  */
 
-// TODO: Make player things into a struct, a player has-an entity
-bool player_check_tile(int offset_x, int offset_y); // check if the player_x/y + offset_x/y is on a walkable tile
-void player_move(int direction); // move the player, ensures the tile to walk upon is walkable, else no movement
-
-bool player_check_tile(int offset_x, int offset_y)
-{
-    switch (Map[Player_y + offset_y][Player_x + offset_x]) {
-        case FLOOR:
-        case STAIR_DOWN:
-        case STAIR_UP:
-            return true;
-        default:
-            return false;
-    }
-}
-
 void player_move(int direction)
 {
-    // only let the player move if the cooldown is over
-    if (clock() - PlayerLastMove < PLAYER_MOVE_COOLDOWN)
-        return;
-    
-    // TODO: This will not do for a walking mechanism
-    PlayerLastMove = clock();
-
-    // move with bounds check
-    switch (direction) {
-        case UP:    if (player_check_tile(0, -1)) Player_y -= 1; break;
-        case RIGHT: if (player_check_tile(1, 0))  Player_x += 1; break;
-        case DOWN:  if (player_check_tile(0, 1))  Player_y += 1; break;
-        case LEFT:  if (player_check_tile(-1, 0)) Player_x -= 1; break;
-        default:
-            break;
-    }
-
-    PlayerGraph_x = map_to_graph_index(Player_x);
-    PlayerGraph_y = map_to_graph_index(Player_y);
-    Graph[PlayerGraph_y][PlayerGraph_x].is_explored = true;
+    Player.move(direction);
+    Graph[Player.graph_y][Player.graph_x].is_explored = true;
 }
 
 /******************************************************************************
@@ -438,73 +466,18 @@ void gen_floor()
  * 
  */
 
-void draw_graph(pse::Context& ctx);
-void draw_map(pse::Context& ctx);
-void draw_player(pse::Context& ctx);
+void draw_graph();
+void draw_graph_room(int i, int j);
+void draw_graph_doors(int i, int j);
+void draw_map();
+void draw_entities();
 
-void draw_graph(pse::Context& ctx)
+void draw_graph()
 {
-    auto draw_room = [&](int i, int j) {
-        SDL_Color c;
-        if (i == Start_i && j == Start_j)
-            c = pse::Sky;
-        else if (i == End_i && j == End_j)
-            c = pse::Orange;
-        else if (Graph[i][j].index == 0)
-            c = pse::Red;
-        else
-            c = pse::Blue;
-        
-        pse::rect_fill(ctx.renderer, c, SDL_Rect{
-            i * TILE_SCALING + TILE_SCALING / 20,
-            j * TILE_SCALING + TILE_SCALING / 20,
-            TILE_SCALING - TILE_SCALING / 10,
-            TILE_SCALING - TILE_SCALING / 10});
-    };
-
-    auto draw_corridors = [&](int i, int j) {
-        for (int k = 0; k < Graph[i][j].index; ++k) {
-            int x = j * TILE_SCALING;
-            int y = i * TILE_SCALING;
-            int w = TILE_SCALING / 5;
-            switch (Graph[i][j].neighbors[k]) {
-                case UP:
-                    pse::rect_fill(ctx.renderer, pse::Purple, SDL_Rect{
-                        x + TILE_SCALING / 2 - w / 2,
-                        y, w, w
-                    });
-                    break;
-                case RIGHT:
-                    pse::rect_fill(ctx.renderer, pse::Purple, SDL_Rect{
-                        x + TILE_SCALING - w,
-                        y + TILE_SCALING / 2 - w / 2,
-                        w, w
-                    });
-                    break;
-                case DOWN:
-                    pse::rect_fill(ctx.renderer, pse::Purple, SDL_Rect{
-                        x + TILE_SCALING / 2 - w / 2,
-                        y + TILE_SCALING - w,
-                        w, w
-                    });
-                    break;
-                case LEFT:
-                    pse::rect_fill(ctx.renderer, pse::Purple, SDL_Rect{
-                        x,
-                        y + TILE_SCALING / 2 - w / 2,
-                        w, w
-                    });
-                    break;
-                default:
-                    break;
-            }
-        }
-    };
-
     // draw rooms
     for (int i = 0; i < GRAPH_SIZE; ++i) {
         for (int j = 0; j < GRAPH_SIZE; ++j) {
-            draw_room(i, j);
+            draw_graph_room(i, j);
             // can't put draw_corridors here??????????????
             //draw_corridors(i, j);
         }
@@ -512,12 +485,70 @@ void draw_graph(pse::Context& ctx)
     // why can't this go above????
     for (int i = 0; i < GRAPH_SIZE; ++i) {
         for (int j = 0; j < GRAPH_SIZE; ++j) {
-            draw_corridors(i, j);
+            draw_graph_doors(i, j);
         }
     }
 }
 
-void draw_map(pse::Context& ctx)
+void draw_graph_room(int i, int j)
+{
+    SDL_Color c;
+    if (i == Start_i && j == Start_j)
+        c = pse::Sky;
+    else if (i == End_i && j == End_j)
+        c = pse::Orange;
+    else if (Graph[i][j].index == 0)
+        c = pse::Red;
+    else
+        c = pse::Blue;
+
+    pse::rect_fill(PSE_Context->renderer, c, SDL_Rect{
+        i * TILE_SCALING + TILE_SCALING / 20,
+        j * TILE_SCALING + TILE_SCALING / 20,
+        TILE_SCALING - TILE_SCALING / 10,
+        TILE_SCALING - TILE_SCALING / 10 });
+}
+
+void draw_graph_doors(int i, int j)
+{
+    for (int k = 0; k < Graph[i][j].index; ++k) {
+        int x = j * TILE_SCALING;
+        int y = i * TILE_SCALING;
+        switch (Graph[i][j].neighbors[k]) {
+        case UP:
+            pse::rect_fill(PSE_Context->renderer, pse::Purple, SDL_Rect{
+                x + TILE_SCALING / 2 - TILE_WIDTH / 2,
+                y, TILE_WIDTH, TILE_WIDTH
+                });
+            break;
+        case RIGHT:
+            pse::rect_fill(PSE_Context->renderer, pse::Purple, SDL_Rect{
+                x + TILE_SCALING - TILE_WIDTH,
+                y + TILE_SCALING / 2 - TILE_WIDTH / 2,
+                TILE_WIDTH, TILE_WIDTH
+                });
+            break;
+        case DOWN:
+            pse::rect_fill(PSE_Context->renderer, pse::Purple, SDL_Rect{
+                x + TILE_SCALING / 2 - TILE_WIDTH / 2,
+                y + TILE_SCALING - TILE_WIDTH,
+                TILE_WIDTH, TILE_WIDTH
+                });
+            break;
+        case LEFT:
+            pse::rect_fill(PSE_Context->renderer, pse::Purple, SDL_Rect{
+                x,
+                y + TILE_SCALING / 2 - TILE_WIDTH / 2,
+                TILE_WIDTH, TILE_WIDTH
+                });
+            break;
+        default:
+            break;
+        }
+    }
+}
+
+void draw_map()
 {
     for (int i = 0; i < MAP_SIZE; ++i) {
         for (int j = 0; j < MAP_SIZE; ++j) {
@@ -525,7 +556,7 @@ void draw_map(pse::Context& ctx)
             switch (Map[i][j]) {
                 case WALL: c = pse::Dark; break;
                 case FLOOR:
-                    if (PlayerGraph_x == map_to_graph_index(j) && PlayerGraph_y == map_to_graph_index(i))
+                    if (Player.graph_x == map_to_graph_index(j) && Player.graph_y == map_to_graph_index(i))
                         c = pse::Aqua;
                     else if (Graph[map_to_graph_index(i)][map_to_graph_index(j)].is_explored)
                         c = pse::White;
@@ -533,27 +564,40 @@ void draw_map(pse::Context& ctx)
                         c = pse::Dark;
                     break;
                 case EMPTY: c = pse::Black; break;
-                case STAIR_DOWN: c = pse::Orange; break;
-                case STAIR_UP: c = pse::Salmon; break;
                 default:
                     c = pse::Magenta;
             }
-            pse::rect_fill(ctx.renderer, c, SDL_Rect{
+            pse::rect_fill(PSE_Context->renderer, c, SDL_Rect{
                 j * TILE_WIDTH, i * TILE_WIDTH, TILE_WIDTH, TILE_WIDTH
             });
         }
     }
 }
 
-void draw_player(pse::Context& ctx)
+void draw_entities()
 {
-    pse::rect_fill(ctx.renderer, pse::Red, SDL_Rect{
-        Player_x * TILE_WIDTH, Player_y * TILE_WIDTH, TILE_WIDTH, TILE_WIDTH
-    });
+    // traverse backwards, make first inserted displayed on top
+    for (int i = EntityIndex - 1; i >= 0; --i) {
+        if (!Entities[i])
+            break;
+        
+        SDL_Rect rect{ Entities[i]->map_x * TILE_WIDTH, Entities[i]->map_y * TILE_WIDTH, TILE_WIDTH, TILE_WIDTH };
+        SDL_Color c;
+
+        switch (Entities[i]->id) {
+            case ID_PLAYER:     c = pse::Red; break;
+            case ID_STAIR_DOWN: c = pse::Orange; break;
+            case ID_STAIR_UP:   c = pse::Salmon; break;
+            default:
+                c = pse::Magenta;
+        }
+        pse::rect_fill(PSE_Context->renderer, c, rect);
+    }
 }
 
 void rogue_setup(pse::Context& ctx)
 {
+    PSE_Context = &ctx;
     gen_floor();
 }
 
@@ -571,11 +615,11 @@ void rogue_update(pse::Context& ctx)
     else if (ctx.keystate[SDL_SCANCODE_A])
         player_move(LEFT);
 
-    if (Player_x == Stair_x && Player_y == Stair_y)
+    if (Player.map_x == StairDown.map_x && Player.map_y == StairDown.map_y)
         gen_floor();
 
-    draw_map(ctx);
-    draw_player(ctx);
+    draw_map();
+    draw_entities();
 }
 
 }
