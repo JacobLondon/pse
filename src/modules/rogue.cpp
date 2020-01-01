@@ -13,8 +13,9 @@
 #include "../modules.hpp"
 
 #include <cstdio>
+#include <algorithm>
 #include <vector>
-#include <list>
+#include <deque>
 
 namespace Modules {
 
@@ -75,6 +76,9 @@ struct Node {
     static bool cmp(Node *a, Node *b) {
         return a->global_goal < b->global_goal;
     }
+    static float dist(Node *a, Node *b) {
+        return fast_sqrtf((a->x - b->x) * (a->x - b->x) + (a->y - b->y) * (a->y - b->y));
+    }
 };
 
 // graph node
@@ -121,7 +125,6 @@ int graph_to_map_index(int index);
 Floor Dungeon[FLOORS_MAX];
 int FloorLevel = 0;
 int LastStairDirection = UP;
-
 #define FLR Dungeon[FloorLevel]
 
 struct Entity {
@@ -165,7 +168,9 @@ Entity StairUp{}, StairDown{};
 Entity *Entities[ENTITY_MAX];
 int EntityIndex = 0;
 
+// A* util
 Node Nodes[MAP_SIZE][MAP_SIZE];
+std::deque<Node *> UntestedNodes;
 
 /**
  * Debug
@@ -217,7 +222,7 @@ void spawn_stairs(); // spawn stairs at center of End_i/j
 void astar_init();
 void astar_reset();
 void astar_solve(int start_i, int start_j, int end_i, int end_j);
-void astar_walk(int *i, int *j);
+void astar_walk();
 
 void entity_insert(Entity& e)
 {
@@ -298,6 +303,7 @@ void astar_init()
                 Nodes[i][j].neighbors.push_back(&Nodes[i][j + 1]);
         }
     }
+    UntestedNodes.resize((size_t)((float)MAP_SIZE * logf(MAP_SIZE)));
 }
 
 void astar_reset()
@@ -321,14 +327,6 @@ void astar_reset()
 void astar_solve(int start_i, int start_j, int end_i, int end_j)
 {
     astar_reset();
-    
-    auto distance = [](Node *a, Node *b) {
-        return sqrtf((a->x - b->x) * (a->x - b->x) + (a->y - b->y) * (a->y - b->y));
-    };
-
-    auto heuristic = [distance](Node *a, Node *b) {
-        return distance(a, b);
-    };
 
     // start conditions
     Node *start = &Nodes[start_i][start_j];
@@ -336,46 +334,44 @@ void astar_solve(int start_i, int start_j, int end_i, int end_j)
 
     Node *current = start;
     current->local_goal = 0.0f;
-    current->global_goal = heuristic(start, end);
+    current->global_goal = Node::dist(start, end);
+    UntestedNodes.clear();
+    UntestedNodes.push_back(start);
 
-    std::list<Node *> untested_nodes;
-    untested_nodes.push_back(start);
-
-    while (!untested_nodes.empty()) {
+    while (!UntestedNodes.empty()) {
         // sort by global goal
-        untested_nodes.sort(Node::cmp);
+        std::sort(std::begin(UntestedNodes), std::end(UntestedNodes), Node::cmp);
 
         // ignore nodes already visited
-        while (!untested_nodes.empty() && untested_nodes.front()->visited)
-            untested_nodes.pop_front();
+        while (!UntestedNodes.empty() && UntestedNodes.front()->visited)
+            UntestedNodes.pop_front();
         
         // popped last node
-        if (untested_nodes.empty())
+        if (UntestedNodes.empty())
             break;
 
-        current = untested_nodes.front();
+        current = UntestedNodes.front();
         current->visited = true;
 
         // check neighbors
         for (auto neighbor: current->neighbors) {
             // record the neighbor if it wasn't visited yet
-            if (!neighbor->visited && !neighbor->obstacle) {
-                untested_nodes.push_back(neighbor);
-            }
+            if (!neighbor->visited && !neighbor->obstacle)
+                UntestedNodes.push_back(neighbor);
 
             // find local goals
-            float possible_goal = current->local_goal + distance(current, neighbor);
+            float possible_goal = current->local_goal + Node::dist(current, neighbor);
             if (possible_goal < neighbor->local_goal) {
                 neighbor->parent = current;
                 neighbor->local_goal = possible_goal;
-                neighbor->global_goal = neighbor->local_goal + heuristic(neighbor, end);
+                neighbor->global_goal = neighbor->local_goal + Node::dist(neighbor, end);
             }
         }
     }
 }
 
 // TODO: Hack for now
-void astar_walk(int *i, int *j)
+void astar_walk()
 {
     for (Node *n = &Nodes[StairDown.map_y][StairDown.map_x]; n->parent; n = n->parent) {
         pse::rect_fill(PSE_Context->renderer, pse::Blue,
@@ -822,7 +818,7 @@ void rogue_update(pse::Context& ctx)
     draw_map();
     draw_entities();
     // astar_solve called in player_move
-    astar_walk(nullptr, nullptr);
+    astar_walk();
     //debug_print_player();
 }
 

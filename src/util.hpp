@@ -19,3 +19,8 @@ char* arg_get(int argc, char** argv, const char* arg);
  */
 int rand_range(int min, int max);
 float rand_uniform();
+
+/**
+ * https://en.wikipedia.org/wiki/Fast_inverse_square_root
+ */
+float fast_sqrtf(float number);
