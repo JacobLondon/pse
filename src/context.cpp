@@ -1,7 +1,6 @@
 #include <cstdio>
 #include <chrono>
 #include <thread>
-#include <time.h>
 
 #include "context.hpp"
 #include "draw.hpp"
@@ -9,13 +8,15 @@
 namespace pse {
 
 Context::Context(const char* title, int w, int h, unsigned fps,
-    void (*setup)(Context& ctx), void (*update)(Context& ctx))
+    void (*setup)(Context& ctx), void (*update)(Context& ctx),
+    time_t *seed)
     : window{ nullptr }, renderer{ nullptr }, event{},
       mouse{ 0, 0 }, keystate{ nullptr },
       frame_target{ fps }, frame_counter{ 0 }, delta_time{ 1.0 },
       screen_width{ w }, screen_height{ h }, title{ title }
 {
     SDL_Init(SDL_INIT_EVERYTHING);
+    
     window = SDL_CreateWindow(
         title,
         SDL_WINDOWPOS_CENTERED,
@@ -38,7 +39,7 @@ Context::Context(const char* title, int w, int h, unsigned fps,
      * Utility
      */
 
-    srand(time(0));
+    srand(time(seed));
 
     auto time_now = []() {
         return std::chrono::high_resolution_clock::now();
@@ -55,8 +56,8 @@ Context::Context(const char* title, int w, int h, unsigned fps,
      */
 
     double frame_time, frame_time_target = 1.0 / frame_target * 1000000.0;
-    auto frame_time_next = time_now(),
-         frame_time_diff = time_now();
+    auto frame_time_next = time_now();
+    auto frame_time_diff = time_now();
 
     setup(*this);
 
