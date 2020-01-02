@@ -1,5 +1,7 @@
 #pragma once
 
+#include <SDL2/SDL.h>
+
 namespace pse {
 
 constexpr SDL_Color White   = SDL_Color{ 255, 255, 255, 255 };
@@ -22,12 +24,5 @@ constexpr SDL_Color Blue    = SDL_Color{ 0, 0, 255, 255 };
 constexpr SDL_Color Purple  = SDL_Color{ 128, 0, 255, 255 };
 constexpr SDL_Color Pink    = SDL_Color{ 255, 0, 255, 255 };
 constexpr SDL_Color Magenta = SDL_Color{ 255, 0, 127, 255 };
-
-void clear(SDL_Renderer* rend, SDL_Color c);
-void rect(SDL_Renderer* rend, SDL_Color c, SDL_Rect rect);
-void rect_fill(SDL_Renderer* rend, SDL_Color c, SDL_Rect rect);
-void circle(SDL_Renderer* rend, SDL_Color c, int x, int y, int radius);
-void circle_fill(SDL_Renderer* rend, SDL_Color c, int x, int y, int radius);
-void line(SDL_Renderer* rend, SDL_Color c, int x1, int y1, int x2, int y2);
 
 } // pse

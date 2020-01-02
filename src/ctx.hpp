@@ -1,6 +1,7 @@
 #pragma once
 
 #include <time.h>
+#include <vector>
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
@@ -13,6 +14,7 @@ struct Context {
     SDL_Window* window;
     SDL_Renderer* renderer;
     SDL_Event event;
+    std::vector<SDL_Texture *> textures;
 
     // input devices
     struct {
@@ -36,6 +38,15 @@ struct Context {
     bool check_key(int sdl_scancode);
     bool check_key_invalidate(int sdl_scancode);
     void quit();
+
+    int load_image(const char *path); // put an image into textures, return its ID
+    void draw_image(int id, SDL_Rect rect); // draw an image to coordinates
+    void draw_clear(SDL_Color c); // clear entire surface
+    void draw_rect(SDL_Color c, SDL_Rect rect); // draw rectangle outline
+    void draw_rect_fill(SDL_Color c, SDL_Rect rect); // draw filled rectangle
+    void draw_circle(SDL_Color c, int x, int y, int radius); // draw circle outline
+    void draw_circle_fill(SDL_Color c, int x, int y, int radius); // draw filled circle
+    void draw_line(SDL_Color c, int x1, int y1, int x2, int y2); // draw a line
 };
 
 } // pse

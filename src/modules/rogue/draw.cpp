@@ -1,6 +1,6 @@
 #include "../../pse.hpp"
 
-#include "interface.hpp"
+#include "draw.hpp"
 #include "gen.hpp"
 #include "globals.hpp"
 #include "types.hpp"
@@ -34,7 +34,7 @@ void draw_graph_room(int i, int j)
     else
         c = pse::Blue;
 
-    pse::rect_fill(PSE_Context->renderer, c, SDL_Rect{
+    PSE_Context->draw_rect_fill(c, SDL_Rect{
         i * TILE_SCALING + TILE_SCALING / 20,
         j * TILE_SCALING + TILE_SCALING / 20,
         TILE_SCALING - TILE_SCALING / 10,
@@ -48,27 +48,27 @@ void draw_graph_doors(int i, int j)
         int y = i * TILE_SCALING;
         switch (FLR.Graph[i][j].neighbors[k]) {
         case UP:
-            pse::rect_fill(PSE_Context->renderer, pse::Purple, SDL_Rect{
+            PSE_Context->draw_rect_fill(pse::Purple, SDL_Rect{
                 x + TILE_SCALING / 2 - TILE_WIDTH / 2,
                 y, TILE_WIDTH, TILE_WIDTH
                 });
             break;
         case RIGHT:
-            pse::rect_fill(PSE_Context->renderer, pse::Purple, SDL_Rect{
+            PSE_Context->draw_rect_fill(pse::Purple, SDL_Rect{
                 x + TILE_SCALING - TILE_WIDTH,
                 y + TILE_SCALING / 2 - TILE_WIDTH / 2,
                 TILE_WIDTH, TILE_WIDTH
                 });
             break;
         case DOWN:
-            pse::rect_fill(PSE_Context->renderer, pse::Purple, SDL_Rect{
+            PSE_Context->draw_rect_fill(pse::Purple, SDL_Rect{
                 x + TILE_SCALING / 2 - TILE_WIDTH / 2,
                 y + TILE_SCALING - TILE_WIDTH,
                 TILE_WIDTH, TILE_WIDTH
                 });
             break;
         case LEFT:
-            pse::rect_fill(PSE_Context->renderer, pse::Purple, SDL_Rect{
+            PSE_Context->draw_rect_fill(pse::Purple, SDL_Rect{
                 x,
                 y + TILE_SCALING / 2 - TILE_WIDTH / 2,
                 TILE_WIDTH, TILE_WIDTH
@@ -97,7 +97,7 @@ void draw_map()
                 default:
                     c = pse::Magenta;
             }
-            pse::rect_fill(PSE_Context->renderer, c, SDL_Rect{
+            PSE_Context->draw_rect_fill(c, SDL_Rect{
                 j * TILE_WIDTH, i * TILE_WIDTH, TILE_WIDTH, TILE_WIDTH
             });
         }
@@ -142,7 +142,7 @@ void draw_entities()
             default:
                 c = pse::Magenta;
         }
-        pse::rect_fill(PSE_Context->renderer, c, rect);
+        PSE_Context->draw_rect_fill(c, rect);
     }
 }
 

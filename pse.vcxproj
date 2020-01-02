@@ -96,7 +96,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>lib/x86/SDL2.lib;lib/x86/SDL2main.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>lib/x86/SDL2.lib;lib/x86/SDL2main.lib;lib/x86/SDL2_image.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -113,7 +113,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>lib/x64/SDL2.lib;lib/x64/SDL2main.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>lib/x64/SDL2.lib;lib/x64/SDL2main.lib;lib/x64/SDL2_image.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -133,7 +133,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>lib/x86/SDL2.lib;lib/x86/SDL2main.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>lib/x86/SDL2.lib;lib/x86/SDL2main.lib;lib/x86/SDL2_image.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -152,15 +152,15 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>lib/x64/SDL2.lib;lib/x64/SDL2main.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>lib/x64/SDL2.lib;lib/x64/SDL2main.lib;lib/x64/SDL2_image.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="src\context.cpp" />
-    <ClCompile Include="src\draw.cpp" />
+    <ClCompile Include="src\ctx.cpp" />
+    <ClCompile Include="src\ctx_draw.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\modules\demo.cpp" />
-    <ClCompile Include="src\modules\rogue\interface.cpp" />
+    <ClCompile Include="src\modules\rogue\draw.cpp" />
     <ClCompile Include="src\modules\rogue\entity.cpp" />
     <ClCompile Include="src\modules\rogue\gen.cpp" />
     <ClCompile Include="src\modules\rogue\globals.cpp" />
@@ -169,10 +169,10 @@
     <ClCompile Include="src\util.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\context.hpp" />
-    <ClInclude Include="src\draw.hpp" />
+    <ClInclude Include="src\ctx.hpp" />
+    <ClInclude Include="src\ctx_draw.hpp" />
     <ClInclude Include="src\modules.hpp" />
-    <ClInclude Include="src\modules\rogue\interface.hpp" />
+    <ClInclude Include="src\modules\rogue\draw.hpp" />
     <ClInclude Include="src\modules\rogue\entity.hpp" />
     <ClInclude Include="src\modules\rogue\gen.hpp" />
     <ClInclude Include="src\modules\rogue\globals.hpp" />

@@ -9,9 +9,9 @@
  * 
  */
 
-#include "../../modules.hpp"
+#include "../../pse.hpp"
 #include "entity.hpp"
-#include "interface.hpp"
+#include "draw.hpp"
 #include "gen.hpp"
 #include "globals.hpp"
 #include "types.hpp"

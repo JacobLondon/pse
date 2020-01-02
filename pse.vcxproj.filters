@@ -24,12 +24,6 @@
     <ClCompile Include="src\main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\draw.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\context.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="src\util.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -51,17 +45,17 @@
     <ClCompile Include="src\modules\rogue\types.cpp">
       <Filter>Modules\Rogue</Filter>
     </ClCompile>
-    <ClCompile Include="src\modules\rogue\interface.cpp">
+    <ClCompile Include="src\modules\rogue\draw.cpp">
       <Filter>Modules\Rogue</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ctx.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ctx_draw.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\context.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\draw.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="src\pse.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -83,8 +77,14 @@
     <ClInclude Include="src\modules\rogue\types.hpp">
       <Filter>Modules\Rogue</Filter>
     </ClInclude>
-    <ClInclude Include="src\modules\rogue\interface.hpp">
+    <ClInclude Include="src\modules\rogue\draw.hpp">
       <Filter>Modules\Rogue</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ctx.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ctx_draw.hpp">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

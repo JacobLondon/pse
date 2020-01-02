@@ -2,15 +2,15 @@
 #include <chrono>
 #include <thread>
 
-#include "context.hpp"
-#include "draw.hpp"
+#include "ctx.hpp"
+#include "ctx_draw.hpp"
 
 namespace pse {
 
 Context::Context(const char* title, int w, int h, unsigned fps,
     void (*setup)(Context& ctx), void (*update)(Context& ctx),
     time_t *seed)
-    : window{ nullptr }, renderer{ nullptr }, event{},
+    : window{ nullptr }, renderer{ nullptr }, event{}, textures{},
       mouse{ 0, 0 }, keystate{ nullptr },
       frame_target{ fps }, frame_counter{ 0 }, delta_time{ 1.0 },
       screen_width{ w }, screen_height{ h }, title{ title }, done{ false }
@@ -32,6 +32,11 @@ Context::Context(const char* title, int w, int h, unsigned fps,
     renderer = SDL_CreateRenderer(window, -1, 0);
     if (!renderer) {
         fprintf(stderr, "Error: Failed to initialize SDL Renderer\n");
+        exit(-1);
+    }
+
+    if ((IMG_Init(IMG_INIT_PNG) & IMG_INIT_PNG) != IMG_INIT_PNG) {
+        fprintf(stderr, "Error: Failed to initialize SDL_image: %s\n", IMG_GetError());
         exit(-1);
     }
 
@@ -98,8 +103,11 @@ Context::Context(const char* title, int w, int h, unsigned fps,
 
 Context::~Context()
 {
-    SDL_DestroyWindow(window);
+    for (auto t: textures)
+        SDL_DestroyTexture(t);
+    IMG_Quit();
     SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
     SDL_Quit();
 }
 

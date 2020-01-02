@@ -1,6 +1,6 @@
 TARGET=pse
 CXX=g++
-CXXFLAGS=-std=c++17 -march=native -O2 -pipe -lSDL2 -Wall
+CXXFLAGS=-std=c++17 -march=native -O2 -pipe -lSDL2 -lSDL2_image -Wall
 OBJS=src/context.o src/draw.o src/util.o src/main.o \
 	src/modules/demo.o \
 	src/modules/rogue/entity.o src/modules/rogue/gen.o \
