@@ -4,11 +4,11 @@ for Linux and Visual Studio 2019
 # Building & Dependencies
 ## Linux
 ```
-$ sudo apt-get install libsdl2-dev build-essential
+$ sudo apt-get install libsdl2-dev libsdl2-image-dev build-essential
 $ make
 ```
 ## Visual Studio 2019
-Move either `lib/x86/SDL2.dll` or `lib/x64/SDL2.dll` into the root directory depending on the build configuration.
+Move all DLLs under `/lib/x86/` or `/lib/x64/` into the root directory depending on the build configuration.
 
 | All Config Properties | Option | Spec |
 |-----------------------|--------|------|
@@ -18,5 +18,5 @@ Move either `lib/x86/SDL2.dll` or `lib/x64/SDL2.dll` into the root directory dep
 | C/C++ | Optimization: Optimization | Maximum Optimization (Favor Speed) (/O2) |
 | C/C++ | Optimization: Favor Size Or Speed | Favor fast code (/Ot) |
 | C/C++ | Language: C++ Language Standard | ISO C++17 Standard (/std:c++17) |
-| Linker | Additional Dependencies: (Active(Win32) or Win32) | lib/x86/SDL2.lib lib/x86/SDL2main.lib |
-| Linker | Additional Dependencies: (x64) | lib/x64/SDL2.lib lib/x64/SDL2main.lib |
+| Linker | Additional Dependencies: (Active(Win32) or Win32) | lib/x86/*.lib |
+| Linker | Additional Dependencies: (x64) | lib/x64/*.lib |

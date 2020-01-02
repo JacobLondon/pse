@@ -14,4 +14,4 @@ pse
 # allow for includes
 !/lib/x64
 # ignore top level DLL
-/SDL2.dll
+/*.dll
