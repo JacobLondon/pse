@@ -31,10 +31,10 @@ void rand_room_tile_no_overlap(int gi, int gj, int *i, int *j)
 
 bool empty_coords(int i, int j)
 {
-    for (int i = 0; i < ENTITY_MAX; ++i) {
-        if (!Entities[i])
+    for (int k = 0; k < ENTITY_MAX; ++k) {
+        if (!Entities[k])
             continue;
-        if (Entities[i]->map_y == i && Entities[i]->map_x == j)
+        if (Entities[k]->map_y == i && Entities[k]->map_x == j)
             return false;
     }
     return true;
@@ -236,9 +236,17 @@ void enemy_move()
         if (!Entities[i] || !Entities[i]->is_enemy)
             continue;
         
-        astar_walk(&Entities[i]->map_y, &Entities[i]->map_x, Player.map_y, Player.map_x);
-        Entities[i]->graph_x = map_to_graph_index(Entities[i]->map_x);
-        Entities[i]->graph_y = map_to_graph_index(Entities[i]->map_y);
+        int tmp_y = Entities[i]->map_y;
+        int tmp_x = Entities[i]->map_x;
+        astar_walk(&tmp_y, &tmp_x, Player.map_y, Player.map_x);
+
+        // ensure there is a spot to walk to
+        if (empty_coords(tmp_y, tmp_x)) {
+            Entities[i]->map_x = tmp_x;
+            Entities[i]->map_y = tmp_y;
+            Entities[i]->graph_x = map_to_graph_index(Entities[i]->map_x);
+            Entities[i]->graph_y = map_to_graph_index(Entities[i]->map_y);
+        }
     }
 }
 
