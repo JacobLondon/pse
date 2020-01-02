@@ -30,7 +30,7 @@ struct Room {
     bool is_explored = false;
     bool is_gone = false;
     int index = 0;
-    int neighbors[MAX_NEIGHBORS] = { 0 };
+    int neighbors[NEIGHBORS_MAX] = { 0 };
     int map_h, map_w;
     int map_i, map_j;
     int center_i, center_j;

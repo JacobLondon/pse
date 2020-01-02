@@ -110,7 +110,7 @@ void spawn_stairs()
 
 void spawn_enemies()
 {
-    for (int i = 0; i < rand_range(2, 4); ++i) {
+    for (int i = 0; i < rand_range(ENEMY_MIN, ENEMY_MAX); ++i) {
         Entity *enemy = new Entity{};
 
         enemy->is_enemy = true;

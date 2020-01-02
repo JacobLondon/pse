@@ -25,7 +25,7 @@ bool coords_equal(int i0, int j0, int i1, int j1)
 
 bool up_try_insert(int i, int j)
 {
-    if (i - 1 >= 0 && FLR.Graph[i - 1][j].index < MAX_NEIGHBORS - 1) {
+    if (i - 1 >= 0 && FLR.Graph[i - 1][j].index < NEIGHBORS_MAX - 1) {
         FLR.Graph[i][j].insert_neighbor(UP);
         FLR.Graph[i - 1][j].insert_neighbor(DOWN);
         return true;
@@ -35,7 +35,7 @@ bool up_try_insert(int i, int j)
 
 bool right_try_insert(int i, int j)
 {
-    if (j + 1 < GRAPH_SIZE && FLR.Graph[i][j + 1].index < MAX_NEIGHBORS - 1) {
+    if (j + 1 < GRAPH_SIZE && FLR.Graph[i][j + 1].index < NEIGHBORS_MAX - 1) {
         FLR.Graph[i][j].insert_neighbor(RIGHT);
         FLR.Graph[i][j + 1].insert_neighbor(LEFT);
         return true;
@@ -45,7 +45,7 @@ bool right_try_insert(int i, int j)
 
 bool down_try_insert(int i, int j)
 {
-    if (i + 1 < GRAPH_SIZE && FLR.Graph[i + 1][j].index < MAX_NEIGHBORS - 1) {
+    if (i + 1 < GRAPH_SIZE && FLR.Graph[i + 1][j].index < NEIGHBORS_MAX - 1) {
         FLR.Graph[i][j].insert_neighbor(DOWN);
         FLR.Graph[i + 1][j].insert_neighbor(UP);
         return true;
@@ -55,7 +55,7 @@ bool down_try_insert(int i, int j)
 
 bool left_try_insert(int i, int j)
 {
-    if (j - 1 >= 0 && FLR.Graph[i][j - 1].index < MAX_NEIGHBORS - 1) {
+    if (j - 1 >= 0 && FLR.Graph[i][j - 1].index < NEIGHBORS_MAX - 1) {
         FLR.Graph[i][j].insert_neighbor(LEFT);
         FLR.Graph[i][j - 1].insert_neighbor(RIGHT);
         return true;
@@ -67,7 +67,7 @@ bool room_try_insert(int *out_direction, int i, int j)
 {
     // randomly select a direction that was not yet chosen
     do {
-        *out_direction = rand_range(0, MAX_NEIGHBORS);
+        *out_direction = rand_range(0, NEIGHBORS_MAX);
     } while (FLR.Graph[i][j].check_neighbor(*out_direction));
 
     // attempt to connect to the direction
@@ -236,8 +236,10 @@ void floor_switch(int direction)
             FloorLevel--;
             LastStairDirection = DOWN;
         }
-        else
+        else {
             printf("No rooms above...\n");
+            return;
+        }
         break;
     case DOWN:
         if (FloorLevel + 1 < FLOORS_MAX) {

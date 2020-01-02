@@ -6,7 +6,6 @@
 
 namespace Modules {
 
-constexpr int MAX_NEIGHBORS = 4; // Don't touch
 constexpr int GRAPH_SIZE = 3;
 constexpr int MAP_SIZE = 60;    // ~10x MAP_GRID is good
 
@@ -21,7 +20,11 @@ constexpr int TILE_SCALING = 60; // tile size modifier on SDL window
 constexpr int TILE_WIDTH = TILE_SCALING / 7;
 
 constexpr int ENTITY_MAX = 40; // maximum number of entities
-constexpr int FLOORS_MAX = 20; // maximum number of floors
+constexpr int FLOORS_MAX = 20; // maximum number of floor
+constexpr int NEIGHBORS_MAX = 4; // Don't touchs
+
+constexpr int ENEMY_MAX = 10;
+constexpr int ENEMY_MIN = 5;
 
 enum MapTile {
     WALL = '#',
