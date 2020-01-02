@@ -7,6 +7,13 @@
 
 namespace Modules {
 
+void load_sprites()
+{
+    SpritePlayerId = PSE_Context->load_image("src/modules/rogue/textures/star.png");
+    SpriteFloorId = PSE_Context->load_image("src/modules/rogue/textures/floor.png");
+    SpriteWallId = PSE_Context->load_image("src/modules/rogue/textures/wall.png");
+}
+
 void draw_graph()
 {
     // draw rooms and doors
@@ -83,8 +90,13 @@ void draw_map()
     for (int i = 0; i < MAP_SIZE; ++i) {
         for (int j = 0; j < MAP_SIZE; ++j) {
             SDL_Color c;
+            //SDL_Rect tile = SDL_Rect{ j * TILE_WIDTH, i * TILE_WIDTH, TILE_WIDTH, TILE_WIDTH };
             switch (FLR.Map[i][j]) {
-                case WALL: c = pse::Dark; break;
+                case WALL:
+                    c = pse::Dark;
+                    break;
+                    //PSE_Context->draw_image(SpriteWallId, SDL_Rect{ j * TILE_WIDTH, i * TILE_WIDTH, TILE_WIDTH, TILE_WIDTH });
+                    //return;
                 case FLOOR:
                     if (Player.graph_x == map_to_graph_index(j) && Player.graph_y == map_to_graph_index(i))
                         c = pse::White;
@@ -97,9 +109,7 @@ void draw_map()
                 default:
                     c = pse::Magenta;
             }
-            PSE_Context->draw_rect_fill(c, SDL_Rect{
-                j * TILE_WIDTH, i * TILE_WIDTH, TILE_WIDTH, TILE_WIDTH
-            });
+            PSE_Context->draw_rect_fill(c, SDL_Rect{ j * TILE_WIDTH, i * TILE_WIDTH, TILE_WIDTH, TILE_WIDTH });
         }
     }
 }
@@ -120,8 +130,10 @@ void draw_entities()
 
         switch (Entities[i]->id) {
             case ID_PLAYER:
-                c = pse::Red;
-                break;
+                //c = pse::Red;
+                PSE_Context->draw_image(SpritePlayerId, rect);
+                return;
+                //break;
             case ID_ENEMY:
                 if (!FLR.Graph[Entities[i]->graph_y][Entities[i]->graph_x].is_explored)
                     c = pse::Dark;

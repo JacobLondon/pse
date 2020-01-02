@@ -69,4 +69,9 @@ extern int LastStairDirection;
 
 #define FLR Dungeon[FloorLevel]
 
+extern int SpritePlayerId;
+extern int SpritePlayerId;
+extern int SpriteFloorId;
+extern int SpriteWallId;
+
 }

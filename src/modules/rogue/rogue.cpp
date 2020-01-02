@@ -50,6 +50,7 @@ void rogue_setup(pse::Context& ctx)
     PSE_Context = &ctx;
     gen_floor();
     astar_init();
+    load_sprites();
 }
 
 void rogue_update(pse::Context& ctx)

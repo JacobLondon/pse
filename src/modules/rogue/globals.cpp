@@ -21,4 +21,8 @@ Floor Dungeon[FLOORS_MAX];
 int FloorLevel = 0;
 int LastStairDirection = UP;
 
+int SpritePlayerId = 0;
+int SpriteFloorId = 0;
+int SpriteWallId = 0;
+
 }

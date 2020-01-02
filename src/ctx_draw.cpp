@@ -5,7 +5,12 @@ namespace pse {
 
 int Context::load_image(const char *path)
 {
-    textures.push_back(IMG_LoadTexture(renderer, path));
+    SDL_Texture *t = IMG_LoadTexture(renderer, path);
+    if (!t) {
+        fprintf(stderr, "Error: Invalid texture/path: '%s'\n", path);
+        exit(-1);
+    }
+    textures.push_back(t);
     return (int)textures.size() - 1;
 }
 
