@@ -109,9 +109,9 @@ void draw_entities()
     // traverse backwards, make first inserted displayed on top
     for (int i = EntityIndex - 1; i >= 0; --i) {
         if (!Entities[i]) {
-#ifdef DEBUG
-            printf("Invalid entity: %d\n", i);
-#endif
+            #ifdef DEBUG
+                printf("Invalid entity: %d\n", i);
+            #endif
             break;
         }
         
@@ -119,14 +119,26 @@ void draw_entities()
         SDL_Color c;
 
         switch (Entities[i]->id) {
-            case ID_PLAYER:     c = pse::Red; break;
+            case ID_PLAYER:
+                c = pse::Red;
+                break;
+            case ID_ENEMY:
+                if (!FLR.Graph[Entities[i]->graph_y][Entities[i]->graph_x].is_explored)
+                    c = pse::Dark;
+                else if (coords_equal(Player.graph_x, Player.graph_y, Entities[i]->graph_x, Entities[i]->graph_y))
+                    c = pse::Green;
+                else
+                    c = pse::Gray;
+                break;
             case ID_STAIR_DOWN:
                 if (FLR.Graph[FLR.StairDown.graph_y][FLR.StairDown.graph_x].is_explored)
                     c = pse::Orange;
                 else
                     c = pse::Dark;
                 break;
-            case ID_STAIR_UP:   c = pse::Salmon; break;
+            case ID_STAIR_UP:
+                c = pse::Salmon;
+                break;
             default:
                 c = pse::Magenta;
         }

@@ -13,7 +13,7 @@ Context::Context(const char* title, int w, int h, unsigned fps,
     : window{ nullptr }, renderer{ nullptr }, event{},
       mouse{ 0, 0 }, keystate{ nullptr },
       frame_target{ fps }, frame_counter{ 0 }, delta_time{ 1.0 },
-      screen_width{ w }, screen_height{ h }, title{ title }
+      screen_width{ w }, screen_height{ h }, title{ title }, done{ false }
 {
     SDL_Init(SDL_INIT_EVERYTHING);
     
@@ -61,12 +61,13 @@ Context::Context(const char* title, int w, int h, unsigned fps,
 
     setup(*this);
 
-    while (true) {
+    while (!done) {
         // keys
         while (SDL_PollEvent(&event)) {
             switch (event.type) {
             case SDL_QUIT:
-                goto Quit;
+                done = true;
+                break;
             default:
                 break;
             }
@@ -92,7 +93,6 @@ Context::Context(const char* title, int w, int h, unsigned fps,
         delta_time = frame_time / 1000000.0;
     }
 
-Quit:
     return;
 }
 
@@ -113,6 +113,11 @@ bool Context::check_key_invalidate(int sdl_scancode)
     bool pressed = keystate[sdl_scancode];
     keystate[sdl_scancode] = 0;
     return pressed;
+}
+
+void Context::quit()
+{
+    done = true;
 }
 
 } // pse

@@ -4,6 +4,10 @@
 
 namespace Modules {
 
+/**
+ * Room
+ */
+
 void Room::insert_neighbor(int neighbor) {
     neighbors[index++] = neighbor;
     is_connected = true;
@@ -17,10 +21,10 @@ bool Room::check_neighbor(int neighbor) {
     return false;
 }
 
-// range within the room, not including outer walls
+// range within the room, not including outer area/walls
 void Room::rand_tile(int* i, int *j) {
-    *i = rand_range(map_i + 1, map_i + map_h - 1);
-    *j = rand_range(map_j + 1, map_j + map_w - 1);
+    *i = rand_range(map_i + 2, map_i + map_h - 2);
+    *j = rand_range(map_j + 2, map_j + map_w - 2);
 }
 
 void Room::rand_corridor(int *i, int *j) {
@@ -43,6 +47,10 @@ void Room::print() {
         }
     }
 }
+
+/**
+ * Entity
+ */
 
 bool Entity::check_tile(int offset_x, int offset_y)
 {

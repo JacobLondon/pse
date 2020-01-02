@@ -48,7 +48,7 @@ struct Entity {
     int graph_x, graph_y;
     int map_x, map_y;
     int id = -1;
-    int index;
+    bool is_enemy = false;
 
     bool check_tile(int offset_x, int offset_y);
     // move with bounds check

@@ -1,23 +1,56 @@
 #include <algorithm>
 
 #include "entity.hpp"
+#include "gen.hpp"
 #include "globals.hpp"
 #include "types.hpp"
 
 namespace Modules {
 
-void entity_insert(Entity& e)
+void entity_insert(Entity *e)
 {
     if (EntityIndex + 1 < ENTITY_MAX) {
-        e.index = EntityIndex;
-        Entities[EntityIndex++] = &e;
+        Entities[EntityIndex++] = e;
     }
+}
+
+void rand_room_tile(int gi, int gj, int *i, int *j)
+{
+    if (FLR.Graph[gi][gj].is_gone)
+        FLR.Graph[gi][gj].rand_corridor(i, j);
+    else
+        FLR.Graph[gi][gj].rand_tile(i, j);
+}
+
+void rand_room_tile_no_overlap(int gi, int gj, int *i, int *j)
+{
+    do {
+        rand_room_tile(gi, gj, i, j);
+    } while (!empty_coords(*i, *j));
+}
+
+bool empty_coords(int i, int j)
+{
+    for (int i = 0; i < ENTITY_MAX; ++i) {
+        if (!Entities[i])
+            continue;
+        if (Entities[i]->map_y == i && Entities[i]->map_x == j)
+            return false;
+    }
+    return true;
 }
 
 void spawn_entities()
 {
     // stop looking at each entity
     for (int i = 0; i < ENTITY_MAX; ++i) {
+        if (!Entities[i])
+            continue;
+        
+        if (Entities[i]->is_enemy) {
+            delete Entities[i];
+        }
+
         Entities[i] = nullptr;
     }
     // reset
@@ -26,6 +59,7 @@ void spawn_entities()
     // "permanent" entities
     spawn_stairs();
     spawn_player();
+    spawn_enemies();
 }
 
 void spawn_player()
@@ -50,28 +84,14 @@ void spawn_player()
     Player.id = ID_PLAYER;
     FLR.Graph[Player.graph_y][Player.graph_x].is_explored = true;
 
-    entity_insert(Player);
+    entity_insert(&Player);
 }
 
 void spawn_stairs()
 {
     if (!FLR.visited) {
-        // spawn in the corridors only
-        if (FLR.Graph[FLR.End_i][FLR.End_j].is_gone) {
-            FLR.Graph[FLR.End_i][FLR.End_j].rand_corridor(&FLR.StairDown.map_y, &FLR.StairDown.map_x);
-            // don't let stairs overlap
-            do {
-                FLR.Graph[FLR.Start_i][FLR.Start_j].rand_corridor(&FLR.StairUp.map_y, &FLR.StairUp.map_x);
-            } while (FLR.StairUp.map_y == FLR.StairDown.map_y && FLR.StairUp.map_x == FLR.StairDown.map_x);
-        }
-        // spawn in the room
-        else {
-            FLR.Graph[FLR.End_i][FLR.End_j].rand_tile(&FLR.StairDown.map_y, &FLR.StairDown.map_x);
-            // don't let stairs overlap
-            do {
-                FLR.Graph[FLR.Start_i][FLR.Start_j].rand_tile(&FLR.StairUp.map_y, &FLR.StairUp.map_x);
-            } while (FLR.StairUp.map_y == FLR.StairDown.map_y && FLR.StairUp.map_x == FLR.StairDown.map_x);
-        }
+        rand_room_tile_no_overlap(FLR.End_i, FLR.End_j, &FLR.StairDown.map_y, &FLR.StairDown.map_x);
+        rand_room_tile_no_overlap(FLR.Start_i, FLR.Start_j, &FLR.StairUp.map_y, &FLR.StairUp.map_x);
 
         FLR.StairDown.graph_x = FLR.End_j;
         FLR.StairDown.graph_y = FLR.End_i;
@@ -84,8 +104,24 @@ void spawn_stairs()
         FLR.visited = true;
     }
 
-    entity_insert(FLR.StairDown);
-    entity_insert(FLR.StairUp);
+    entity_insert(&FLR.StairDown);
+    entity_insert(&FLR.StairUp);
+}
+
+void spawn_enemies()
+{
+    for (int i = 0; i < rand_range(2, 4); ++i) {
+        Entity *enemy = new Entity{};
+
+        enemy->is_enemy = true;
+        enemy->id = ID_ENEMY;
+        // pick random room
+        enemy->graph_x = rand_range(0, GRAPH_SIZE);
+        enemy->graph_y = rand_range(0, GRAPH_SIZE);
+        rand_room_tile_no_overlap(enemy->graph_y, enemy->graph_x, &enemy->map_y, &enemy->map_x);
+
+        entity_insert(enemy);
+    }
 }
 
 void astar_init()
@@ -169,23 +205,42 @@ void astar_solve(int start_i, int start_j, int end_i, int end_j)
     }
 }
 
-// TODO: Hack for now
-void astar_walk()
+void astar_walk(int *start_i, int *start_j, int end_i, int end_j)
 {
-    for (Node *n = &Nodes[FLR.StairDown.map_y][FLR.StairDown.map_x]; n->parent; n = n->parent) {
-        pse::rect_fill(PSE_Context->renderer, pse::Blue,
-            SDL_Rect{
-                n->x * TILE_WIDTH, n->y * TILE_WIDTH, TILE_WIDTH, TILE_WIDTH
-            });
+    astar_solve(*start_i, *start_j, end_i, end_j);
+
+    // find next adjacent square to walk to
+    for (Node *n = &Nodes[end_i][end_j]; n->parent; n = n->parent) {
+        if (!n->parent->parent) {
+            *start_i = n->y;
+            *start_j = n->x;
+            printf("Goal: %d, %d\n", *start_i, *start_j);
+        }
     }
+}
+
+void entity_move(int direction)
+{
+    enemy_move();
+    player_move(direction);
 }
 
 void player_move(int direction)
 {
     Player.move(direction);
     FLR.Graph[Player.graph_y][Player.graph_x].is_explored = true;
-    
-    astar_solve(Player.map_y, Player.map_x, FLR.StairDown.map_y, FLR.StairDown.map_x);
+}
+
+void enemy_move()
+{
+    for (int i = 0; i < ENTITY_MAX; ++i) {
+        if (!Entities[i] || !Entities[i]->is_enemy)
+            continue;
+        
+        astar_walk(&Entities[i]->map_y, &Entities[i]->map_x, Player.map_y, Player.map_x);
+        Entities[i]->graph_x = map_to_graph_index(Entities[i]->map_x);
+        Entities[i]->graph_y = map_to_graph_index(Entities[i]->map_y);
+    }
 }
 
 }

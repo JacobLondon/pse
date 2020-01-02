@@ -39,6 +39,7 @@ enum Direction {
 enum EntityId {
     ID_INVALID = -1,
     ID_PLAYER,
+    ID_ENEMY,
     ID_STAIR_DOWN,
     ID_STAIR_UP,
 };
