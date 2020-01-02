@@ -9,9 +9,13 @@ namespace Modules {
 
 void load_sprites()
 {
-    SpritePlayerId = PSE_Context->load_image("src/modules/rogue/textures/star.png");
-    SpriteFloorId = PSE_Context->load_image("src/modules/rogue/textures/floor.png");
-    SpriteWallId = PSE_Context->load_image("src/modules/rogue/textures/wall.png");
+    SpritePlayerId     = PSE_Context->load_image("src/modules/rogue/textures/player.png");
+    SpriteEnemyId      = PSE_Context->load_image("src/modules/rogue/textures/enemy.png");
+    SpriteFloorLightId = PSE_Context->load_image("src/modules/rogue/textures/floor_light.png");
+    SpriteFloorDarkId  = PSE_Context->load_image("src/modules/rogue/textures/floor_dark.png");
+    SpriteWallId       = PSE_Context->load_image("src/modules/rogue/textures/wall.png");
+    SpriteStairUpId    = PSE_Context->load_image("src/modules/rogue/textures/stair_up.png");
+    SpriteStairDownId  = PSE_Context->load_image("src/modules/rogue/textures/stair_down.png");
 }
 
 void draw_graph()
@@ -90,26 +94,25 @@ void draw_map()
     for (int i = 0; i < MAP_SIZE; ++i) {
         for (int j = 0; j < MAP_SIZE; ++j) {
             SDL_Color c;
-            //SDL_Rect tile = SDL_Rect{ j * TILE_WIDTH, i * TILE_WIDTH, TILE_WIDTH, TILE_WIDTH };
+            SDL_Rect tile = SDL_Rect{ j * TILE_WIDTH, i * TILE_WIDTH, TILE_WIDTH, TILE_WIDTH };
             switch (FLR.Map[i][j]) {
                 case WALL:
-                    c = pse::Dark;
+                    PSE_Context->draw_image(SpriteWallId, tile);
                     break;
-                    //PSE_Context->draw_image(SpriteWallId, SDL_Rect{ j * TILE_WIDTH, i * TILE_WIDTH, TILE_WIDTH, TILE_WIDTH });
-                    //return;
                 case FLOOR:
                     if (Player.graph_x == map_to_graph_index(j) && Player.graph_y == map_to_graph_index(i))
-                        c = pse::White;
+                        PSE_Context->draw_image(SpriteFloorLightId, tile);
                     else if (FLR.Graph[map_to_graph_index(i)][map_to_graph_index(j)].is_explored)
-                        c = pse::Gray;
+                        PSE_Context->draw_image(SpriteFloorDarkId, tile);
                     else
-                        c = pse::Dark;
+                        PSE_Context->draw_image(SpriteWallId, tile);
                     break;
-                case EMPTY: c = pse::Black; break;
+                case EMPTY:
+                    PSE_Context->draw_rect_fill(pse::Black, tile);
+                    break;
                 default:
-                    c = pse::Magenta;
+                    PSE_Context->draw_rect_fill(pse::Magenta, tile);
             }
-            PSE_Context->draw_rect_fill(c, SDL_Rect{ j * TILE_WIDTH, i * TILE_WIDTH, TILE_WIDTH, TILE_WIDTH });
         }
     }
 }
@@ -117,7 +120,7 @@ void draw_map()
 void draw_entities()
 {
     // traverse backwards, make first inserted displayed on top
-    for (int i = EntityIndex - 1; i >= 0; --i) {
+    for (int i = 0; i < EntityIndex; ++i) {
         if (!Entities[i]) {
             #ifdef DEBUG
                 printf("Invalid entity: %d\n", i);
@@ -130,31 +133,28 @@ void draw_entities()
 
         switch (Entities[i]->id) {
             case ID_PLAYER:
-                //c = pse::Red;
                 PSE_Context->draw_image(SpritePlayerId, rect);
-                return;
-                //break;
+                break;
             case ID_ENEMY:
                 if (!FLR.Graph[Entities[i]->graph_y][Entities[i]->graph_x].is_explored)
-                    c = pse::Dark;
+                    PSE_Context->draw_image(SpriteWallId, rect);
                 else if (coords_equal(Player.graph_x, Player.graph_y, Entities[i]->graph_x, Entities[i]->graph_y))
-                    c = pse::Green;
+                    PSE_Context->draw_image(SpriteEnemyId, rect);
                 else
-                    c = pse::Gray;
+                    PSE_Context->draw_image(SpriteFloorDarkId, rect);
                 break;
             case ID_STAIR_DOWN:
                 if (FLR.Graph[FLR.StairDown.graph_y][FLR.StairDown.graph_x].is_explored)
-                    c = pse::Orange;
+                    PSE_Context->draw_image(SpriteStairDownId, rect);
                 else
-                    c = pse::Dark;
+                    PSE_Context->draw_image(SpriteWallId, rect);
                 break;
             case ID_STAIR_UP:
-                c = pse::Salmon;
+                PSE_Context->draw_image(SpriteStairUpId, rect);
                 break;
             default:
-                c = pse::Magenta;
+                PSE_Context->draw_rect_fill(pse::Magenta, rect);
         }
-        PSE_Context->draw_rect_fill(c, rect);
     }
 }
 

@@ -22,7 +22,11 @@ int FloorLevel = 0;
 int LastStairDirection = UP;
 
 int SpritePlayerId = 0;
-int SpriteFloorId = 0;
+int SpriteEnemyId = 0;
+int SpriteFloorLightId = 0;
+int SpriteFloorDarkId = 0;
 int SpriteWallId = 0;
+int SpriteStairUpId = 0;
+int SpriteStairDownId = 0;
 
 }

@@ -3,10 +3,12 @@
 
 #include "modules.hpp"
 
+// TODO: Fix rand_range, divides by 0 sometimes?
+
 int main(int argc, char **argv)
 {
     auto run = [](const char *title, auto setup, auto update) {
-        pse::Context ctx = pse::Context(title, 640, 480, 60, setup, update);
+        pse::Context ctx = pse::Context(title, PSE_RESOLUTION_43_1024_768, 60, setup, update);
     };
 
     if (arg_check(argc, argv, "--demo")) {

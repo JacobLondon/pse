@@ -2,12 +2,10 @@
 
 #include <deque>
 
-//#include "types.hpp"
-
 namespace Modules {
 
-constexpr int GRAPH_SIZE = 3;
-constexpr int MAP_SIZE = 60;    // ~10x MAP_GRID is good
+constexpr int GRAPH_SIZE = 4;
+constexpr int MAP_SIZE = 60;    // ~10x GRAPH_SIZE is good
 
 // the number of tiles square of each room
 constexpr int ROOM_WIDTH = MAP_SIZE / GRAPH_SIZE - 1;
@@ -16,7 +14,7 @@ constexpr int ROOM_CONNECT_TRIES = 7;
 #define ROOM_PATH_MODIFIER 2 / 3 /* INTENDS TO HAVE OPERATOR PRECEDENCE MAKE LHS RVALUE GREATER THAN RHS */
 constexpr float ROOM_GONE_CHANCE = 0.05f;
 
-constexpr int TILE_SCALING = 60; // tile size modifier on SDL window
+constexpr int TILE_SCALING = 95; // tile size modifier on SDL window
 constexpr int TILE_WIDTH = TILE_SCALING / 7;
 
 constexpr int ENTITY_MAX = 40; // maximum number of entities
@@ -70,8 +68,11 @@ extern int LastStairDirection;
 #define FLR Dungeon[FloorLevel]
 
 extern int SpritePlayerId;
-extern int SpritePlayerId;
-extern int SpriteFloorId;
+extern int SpriteEnemyId;
+extern int SpriteFloorLightId;
+extern int SpriteFloorDarkId;
 extern int SpriteWallId;
+extern int SpriteStairUpId;
+extern int SpriteStairDownId;
 
 }
