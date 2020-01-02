@@ -214,7 +214,6 @@ void astar_walk(int *start_i, int *start_j, int end_i, int end_j)
         if (!n->parent->parent) {
             *start_i = n->y;
             *start_j = n->x;
-            printf("Goal: %d, %d\n", *start_i, *start_j);
         }
     }
 }
