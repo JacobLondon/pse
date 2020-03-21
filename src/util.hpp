@@ -24,3 +24,9 @@ float rand_uniform();
  * https://en.wikipedia.org/wiki/Fast_inverse_square_root
  */
 float fast_sqrtf(float number);
+
+double fast_sin(double x);
+
+double fast_cos(double x);
+
+char* file_read(const char* fname);
