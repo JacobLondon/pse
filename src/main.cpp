@@ -17,6 +17,9 @@ int main(int argc, char **argv)
     else if (arg_check(argc, argv, "--rogue")) {
         run("Rogue", Modules::rogue_setup, Modules::rogue_update);
     }
+    else if (arg_check(argc, argv, "--trace")) {
+        run("Tracer", Modules::trace_setup, Modules::trace_update);
+    }
     else {
         printf("Usage:\n--demo\n--rogue\n");
     }

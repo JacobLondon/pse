@@ -1,5 +1,6 @@
 #include "ctx.hpp"
 #include "ctx_draw.hpp"
+#include "util.hpp"
 
 namespace pse {
 
@@ -103,6 +104,41 @@ void Context::draw_line(SDL_Color c, int x1, int y1, int x2, int y2)
     SDL_SetRenderDrawColor(renderer, c.r, c.g, c.b, c.a);
 
     SDL_RenderDrawLine(renderer, x1, y1, x2, y2);
+}
+
+void Context::draw_tri(SDL_Color c, int x1, int y1, int x2, int y2, int x3, int y3)
+{
+    SDL_SetRenderDrawColor(renderer, c.r, c.g, c.b, c.a);
+    SDL_RenderDrawLine(renderer, x1, y1, x2, y2);
+    SDL_RenderDrawLine(renderer, x2, y2, x3, y3);
+    SDL_RenderDrawLine(renderer, x3, y3, x1, y1);
+}
+
+void Context::draw_tri_fill(SDL_Color c, int x1, int y1, int x2, int y2, int x3, int y3)
+{
+    SDL_SetRenderDrawColor(renderer, c.r, c.g, c.b, c.a);
+
+    double mag = (double)fast_sqrtf((float)((x2 - x1) * (x2 - x1)) + (float)((y2 - y1) * (y2 - y1)));
+    double xstep = (double)(x2 - x1) / mag;
+    double ystep = (double)(y2 - y1) / mag;
+    double x, y;
+    for (x = x1, y = y1; (int)x != x2 && (int)y != y2; x += xstep, y += ystep) {
+        SDL_RenderDrawLine(renderer, (int)x, (int)y, x3, y3);
+    }
+
+    mag = (double)fast_sqrtf((float)((x3 - x2) * (x3 - x2)) + (float)((y3 - y2) * (y3 - y2)));
+    xstep = (double)(x3 - x2) / mag;
+    ystep = (double)(y3 - y2) / mag;
+    for (x = x2, y = y2; (int)x != x3 && (int)y != y3; x += xstep, y += ystep) {
+        SDL_RenderDrawLine(renderer, (int)x, (int)y, x1, y1);
+    }
+
+    mag = (double)fast_sqrtf((float)((x1 - x3) * (x1 - x3)) + (float)((y1 - y3) * (y1 - y3)));
+    xstep = (double)(x1 - x3) / mag;
+    ystep = (double)(y1 - y3) / mag;
+    for (x = x3, y = y3; (int)x != x1 && (int)y != y1; x += xstep, y += ystep) {
+        SDL_RenderDrawLine(renderer, (int)x, (int)y, x2, y2);
+    }
 }
 
 } // pse

@@ -59,6 +59,8 @@ struct Context {
     void draw_circle(SDL_Color c, int x, int y, int radius); // draw circle outline
     void draw_circle_fill(SDL_Color c, int x, int y, int radius); // draw filled circle
     void draw_line(SDL_Color c, int x1, int y1, int x2, int y2); // draw a line
+    void draw_tri(SDL_Color c, int x1, int y1, int x2, int y2, int x3, int y3);
+    void draw_tri_fill(SDL_Color c, int x1, int y1, int x2, int y2, int x3, int y3);
 };
 
 } // pse

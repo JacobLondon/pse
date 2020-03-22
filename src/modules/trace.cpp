@@ -1,10 +1,15 @@
-#include <vector>
-#include <string>
-#include <fstream>
-#include <streambuf>
 #include <cassert>
+#include <cstdio>
+#include <algorithm>
+#include <deque>
+#include <fstream>
+#include <string>
+#include <streambuf>
+#include <vector>
 
 #include "../modules.hpp"
+
+pse::Context *Ctx;
 
 struct Matrix;
 
@@ -19,19 +24,19 @@ struct Vec {
     Vec(double x, double y, double z, double w) : x(x), y(y), z(z), w(w) {}
 
     static Vec add(Vec& v1, Vec& v2) {
-        return Vec{ v1.x + v2.x, v1.y + v2.y, v1.z + v2.z };
+        return Vec{ v1.x + v2.x, v1.y + v2.y, v1.z + v2.z, v1.w + v2.w };
     }
 
     static Vec sub(Vec& v1, Vec& v2) {
-        return Vec{ v1.x - v2.x, v1.y - v2.y, v1.z - v2.z };
+        return Vec{ v1.x - v2.x, v1.y - v2.y, v1.z - v2.z, v1.w - v2.w };
     }
 
     static Vec mul(Vec& v, double k) {
-        return Vec{ v.x * k, v.y * k, v.z * k };
+        return Vec{ v.x * k, v.y * k, v.z * k, v.w * k };
     }
     
     static Vec div(Vec& v, double k) {
-        return Vec{ v.x / k, v.y / k, v.z / k };
+        return Vec{ v.x / k, v.y / k, v.z / k, v.w / k };
     }
 
     static double dot(Vec& v1, Vec& v2) {
@@ -52,7 +57,7 @@ struct Vec {
 
     static Vec normal(Vec& v) {
         double m = Vec::mag(v);
-        return Vec{ v.x / m, v.y / m, v.z / m };
+        return Vec{ v.x / m, v.y / m, v.z / m, v.w / m};
     }
 
     // 1x4 * 4x4 -> 1x4
@@ -126,7 +131,7 @@ struct Matrix {
     }
 
     static Matrix translate(double x, double y, double z) {
-        Matrix m = Matrix{};
+        Matrix m = Matrix{0};
         m.m[3][0] = x;
         m.m[3][1] = y;
         m.m[3][2] = z;
@@ -174,7 +179,38 @@ struct Matrix {
             -1.0 * (m.m[3][0] * m.m[0][0] + m.m[3][1] * m.m[1][0] + m.m[3][2] * m.m[2][0]),
             -1.0 * (m.m[3][0] * m.m[0][1] + m.m[3][1] * m.m[1][1] + m.m[3][2] * m.m[2][1]),
             -1.0 * (m.m[3][0] * m.m[0][2] + m.m[3][1] * m.m[1][2] + m.m[3][2] * m.m[2][2]),
-            1
+             1.0
+        };
+    }
+
+    /*
+    00 01 02 03   00 01 02 03   00*00 + 10*01 + 20*02 + 30*03
+    10 11 12 13   10 11 12 13   
+    20 21 22 23   20 21 22 23   
+    30 31 32 33   30 31 32 33   
+    */
+
+    static Matrix matmul(Matrix& m1, Matrix& m2) {
+        return Matrix{
+            m1.m[0][0]*m2.m[0][0] + m1.m[0][1]*m2.m[1][0] + m1.m[0][2]*m2.m[2][0] + m1.m[0][3]*m2.m[3][0],
+            m1.m[0][0]*m2.m[0][2] + m1.m[0][1]*m2.m[1][2] + m1.m[0][2]*m2.m[2][2] + m1.m[0][3]*m2.m[3][2],
+            m1.m[0][0]*m2.m[0][1] + m1.m[0][1]*m2.m[1][1] + m1.m[0][2]*m2.m[2][1] + m1.m[0][3]*m2.m[3][1],
+            m1.m[0][0]*m2.m[0][3] + m1.m[0][1]*m2.m[1][3] + m1.m[0][2]*m2.m[2][3] + m1.m[0][3]*m2.m[3][3],
+            
+            m1.m[1][0]*m2.m[0][0] + m1.m[1][1]*m2.m[1][0] + m1.m[1][2]*m2.m[2][0] + m1.m[1][3]*m2.m[3][0],
+            m1.m[1][0]*m2.m[0][2] + m1.m[1][1]*m2.m[1][2] + m1.m[1][2]*m2.m[2][2] + m1.m[1][3]*m2.m[3][2],
+            m1.m[1][0]*m2.m[0][1] + m1.m[1][1]*m2.m[1][1] + m1.m[1][2]*m2.m[2][1] + m1.m[1][3]*m2.m[3][1],
+            m1.m[1][0]*m2.m[0][3] + m1.m[1][1]*m2.m[1][3] + m1.m[1][2]*m2.m[2][3] + m1.m[1][3]*m2.m[3][3],
+            
+            m1.m[2][0]*m2.m[0][0] + m1.m[2][1]*m2.m[1][0] + m1.m[2][2]*m2.m[2][0] + m1.m[2][3]*m2.m[3][0],
+            m1.m[2][0]*m2.m[0][2] + m1.m[2][1]*m2.m[1][2] + m1.m[2][2]*m2.m[2][2] + m1.m[2][3]*m2.m[3][2],
+            m1.m[2][0]*m2.m[0][1] + m1.m[2][1]*m2.m[1][1] + m1.m[2][2]*m2.m[2][1] + m1.m[2][3]*m2.m[3][1],
+            m1.m[2][0]*m2.m[0][3] + m1.m[2][1]*m2.m[1][3] + m1.m[2][2]*m2.m[2][3] + m1.m[2][3]*m2.m[3][3],
+            
+            m1.m[3][0]*m2.m[0][0] + m1.m[3][1]*m2.m[1][0] + m1.m[3][2]*m2.m[2][0] + m1.m[3][3]*m2.m[3][0],
+            m1.m[3][0]*m2.m[0][2] + m1.m[3][1]*m2.m[1][2] + m1.m[3][2]*m2.m[2][2] + m1.m[3][3]*m2.m[3][2],
+            m1.m[3][0]*m2.m[0][1] + m1.m[3][1]*m2.m[1][1] + m1.m[3][2]*m2.m[2][1] + m1.m[3][3]*m2.m[3][1],
+            m1.m[3][0]*m2.m[0][3] + m1.m[3][1]*m2.m[1][3] + m1.m[3][2]*m2.m[2][3] + m1.m[3][3]*m2.m[3][3],
         };
     }
 };
@@ -190,10 +226,10 @@ Vec Vec::matmul(Vec& v, Matrix& m) {
 
 struct Triangle {
     Vec p[3];
-    uint8_t shade[3] = { 255, 255, 255 };
+    SDL_Color shade = SDL_Color{ 255, 255, 255, 255 };
 
-    Triangle() : p{ Vec{}, Vec{}, Vec{} }, shade{ 255, 255, 255 } {}
-    Triangle(Vec v1, Vec v2, Vec v3) : p{ v1, v2, v3 }, shade{ 255, 255, 255 } {}
+    Triangle() : p{ Vec{}, Vec{}, Vec{} }, shade{ 255, 255, 255, 255 } {}
+    Triangle(Vec v1, Vec v2, Vec v3) : p{ v1, v2, v3 }, shade{ 255, 255, 255, 255 } {}
 
     static int clip_against_plane(Vec& plane_p, Vec& plane_n, Triangle& in_t, Triangle& out_t1, Triangle& out_t2) {
         int retval = 0;
@@ -247,9 +283,7 @@ struct Triangle {
 
         // all points inside of plane, let triangle pass through
         else if (inside_point_count == 3) {
-            out_t1.shade[0] = in_t.shade[0];
-            out_t1.shade[1] = in_t.shade[1];
-            out_t1.shade[2] = in_t.shade[2];
+            out_t1.shade = in_t.shade;
 
             out_t1.p[0].x = in_t.p[0].x;
             out_t1.p[0].y = in_t.p[0].y;
@@ -268,9 +302,7 @@ struct Triangle {
 
         // triangle should be clipped to smaller triangle, two points outside
         else if (inside_point_count == 1 && outside_point_count == 2) {
-            out_t1.shade[0] = in_t.shade[0];
-            out_t1.shade[1] = in_t.shade[1];
-            out_t1.shade[2] = in_t.shade[2];
+            out_t1.shade = in_t.shade;
 
             // inside point is valid
             out_t1.p[0] = inside_points[0];
@@ -284,12 +316,8 @@ struct Triangle {
 
         // triangle should be clipped into quad, 1 point outside
         else if (inside_point_count == 2 && outside_point_count == 1) {
-            out_t1.shade[0] = in_t.shade[0];
-            out_t1.shade[1] = in_t.shade[1];
-            out_t1.shade[2] = in_t.shade[2];
-            out_t2.shade[0] = in_t.shade[0];
-            out_t2.shade[1] = in_t.shade[1];
-            out_t2.shade[2] = in_t.shade[2];
+            out_t1.shade = in_t.shade;
+            out_t2.shade = in_t.shade;
             
             // first triangle made of two inside points
             // and a new point at the intersection
@@ -316,30 +344,32 @@ struct Triangle {
 struct Mesh {
     std::vector<Triangle> triangles;
 
-    Mesh(char* path) {
+    Mesh() {}
+
+    void load(const char* path) {
         std::vector<Vec> vertices;
         char* text = file_read(path);
         assert(text);
 
         char* next = strtok(text, " ");
-        for (size_t i = 0; next != NULL; strtok(NULL, " \n")) {
+        for (size_t i = 0; next != NULL; next = strtok(NULL, " \n\r")) {
             if (streq("v", next)) {
                 Vec v;
-                next = strtok(NULL, " ");
+                next = strtok(NULL, " \n");
                 v.x = atof(next);
-                next = strtok(NULL, " ");
+                next = strtok(NULL, " \n");
                 v.y = atof(next);
-                next = strtok(NULL, " ");
+                next = strtok(NULL, " \n");
                 v.z = atof(next);
                 vertices.push_back(v);
             }
             else if (streq("f", next)) {
-                next = strtok(NULL, " ");
-                int f1 = atoi(next);
-                next = strtok(NULL, " ");
-                int f2 = atoi(next);
-                next = strtok(NULL, " ");
-                int f3 = atoi(next);
+                next = strtok(NULL, " \n");
+                int f1 = atoi(next) - 1;
+                next = strtok(NULL, " \n");
+                int f2 = atoi(next) - 1;
+                next = strtok(NULL, " \n");
+                int f3 = atoi(next) - 1;
                 // use *.obj lookup table indices
                 this->triangles.push_back(Triangle{ vertices[f1], vertices[f2], vertices[f3] });
             }
@@ -347,16 +377,236 @@ struct Mesh {
     }
 };
 
+struct Graphics {
+    std::vector<Triangle> triangles_to_raster = std::vector<Triangle>{};
+    Mesh mesh = Mesh{};
+    Matrix proj_matrix;
+    Vec camera = Vec{};
+    Vec look_dir = Vec{};
+    Vec up_vec = Vec{ 0.0, -1.0, 0.0 };
+    double yaw = 0.0;
+    double speed = 10.0;
+    double near = 0.1;
+    double far = 1000.0;
+    double fov = 90.0;
+    double aspect_ratio;
+    int screen_height;
+    int screen_width;
+    
+    Graphics(const char *path, int screen_height, int screen_width) {
+        this->mesh.load(path);
+        this->aspect_ratio = (double)screen_height / (double)screen_width;
+        this->screen_height = screen_height;
+        this->screen_width = screen_width;
+        this->proj_matrix = Matrix::project(this->fov, this->aspect_ratio, this->near, this->far);
+    }
+
+    void raster() {
+        static Triangle test;
+        static int tris_to_add;
+        static int i, j;
+        static int new_triangles;
+        static std::deque<Triangle> triangles;
+        static Triangle clipped[2];
+
+        for (Triangle tri_to_raster : this->triangles_to_raster) {
+            // clip triangles against screen edges
+            clipped[0] = Triangle{};
+            clipped[1] = Triangle{};
+            triangles.clear();
+            // add initial triangle
+            triangles.push_back(tri_to_raster);
+            new_triangles = 1;
+
+            for (i = 0; i < 4; i++) {
+                tris_to_add = 0;
+                while (new_triangles > 0) {
+                    test = triangles.front();
+                    triangles.pop_front();
+                    new_triangles -= 1;
+
+                    // top screen clip
+                    switch (i) {
+                        case 0: {
+                            Vec v1 = Vec{ 0, 0, 0 };
+                            Vec v2 = Vec{ 0, 1, 0 };
+                            tris_to_add = Triangle::clip_against_plane(v1, v2, test, clipped[0], clipped[1]);
+                            break;
+                        }
+                        // bottom screen clip
+                        case 1: {
+                            Vec v1 = Vec{ 0.0, (double)this->screen_height - 1, 0.0 };
+                            Vec v2 = Vec{ 0.0, -1.0, 0.0 };
+                            tris_to_add = Triangle::clip_against_plane(v1, v2, test, clipped[0], clipped[1]);
+                            break;
+                        }
+                        // left screen clip
+                        case 2: {
+                            Vec v1 = Vec{ 0.0, 0.0, 0.0 };
+                            Vec v2 = Vec{ 1.0, 0.0, 0.0 };
+                            tris_to_add = Triangle::clip_against_plane(v1, v2, test, clipped[0], clipped[1]);
+                            break;
+                        }
+                        // right screen clip
+                        case 3: {
+                            Vec v1 = Vec{ (double)this->screen_width - 1.0, 0.0, 0.0 };
+                            Vec v2 = Vec{ -1.0, 0.0, 0.0 };
+                            tris_to_add = Triangle::clip_against_plane(v1, v2, test, clipped[0], clipped[1]);
+                            break;
+                        }
+                    }
+
+                    // add the new triangles to the back of the queue
+                    for (j = 0; j < tris_to_add; j++) {
+                        triangles.push_back(clipped[j]);
+                    }
+                } // end while
+                new_triangles = (int)triangles.size();
+            } // end for
+            for (Triangle t : triangles) {
+                Ctx->draw_tri_fill(t.shade, t.p[0].x, t.p[0].y, t.p[1].x, t.p[1].y, t.p[2].x, t.p[2].y);
+            }
+        }
+    }
+
+    void update() {
+        Vec forward_vec = Vec::mul(this->look_dir, 8 * Ctx->delta_time);
+        Vec right_vec = Vec::cross(this->look_dir, this->up_vec);
+        right_vec = Vec::mul(right_vec, 8 * Ctx->delta_time);
+        // forward
+        if (Ctx->check_key(SDL_SCANCODE_W))
+            this->camera = Vec::add(this->camera, forward_vec);
+        // backward
+        if (Ctx->check_key(SDL_SCANCODE_S))
+            this->camera = Vec::sub(this->camera, forward_vec);
+        // up
+        if (Ctx->check_key(SDL_SCANCODE_SPACE))
+            this->camera.y += this->speed * Ctx->delta_time;
+        // down
+        if (Ctx->check_key(SDL_SCANCODE_LSHIFT))
+            this->camera.y -= this->speed * Ctx->delta_time;
+        // left
+        if (Ctx->check_key(SDL_SCANCODE_A))
+            this->camera = Vec::add(this->camera, right_vec);
+        // right
+        if (Ctx->check_key(SDL_SCANCODE_D))
+            this->camera = Vec::sub(this->camera, right_vec);
+        // turn left
+        if (Ctx->check_key(SDL_SCANCODE_LEFT))
+            this->yaw -= 0.1;
+        // turn right
+        if (Ctx->check_key(SDL_SCANCODE_RIGHT))
+            this->yaw += 0.1;
+
+        this->triangles_to_raster.clear();
+
+        Matrix rotz_matrix = Matrix::rotate_z(0.0);
+        Matrix rotx_matrix = Matrix::rotate_x(0.0);
+        Matrix trans_matrix = Matrix::translate(0.0, 0.0, 5.0);
+
+        // transform world by rotation
+        Matrix world_matrix = Matrix::matmul(rotz_matrix, rotx_matrix);
+        // transform world by translation
+        world_matrix = Matrix::matmul(world_matrix, trans_matrix);
+
+        // set up camera looking vectors
+        Vec target_vec = Vec{ 0, 0, 1 };
+        Matrix rotcamera_matrix = Matrix::rotate_y(this->yaw);
+        this->look_dir = Vec::matmul(target_vec, rotcamera_matrix);
+        target_vec = Vec::add(this->camera, this->look_dir);
+
+        Matrix camera_matrix = Matrix::point_at(this->camera, target_vec, this->up_vec);
+        Matrix view_matrix = Matrix::quick_inverse(camera_matrix);
+
+        // draw all triangles to screen
+        for (Triangle triangle : this->mesh.triangles) {
+            Triangle tri_projected = Triangle{};
+            Triangle tri_transformed = Triangle{};
+            Triangle tri_viewed = Triangle{};
+
+            tri_transformed.p[0] = Vec::matmul(triangle.p[0], world_matrix);
+            tri_transformed.p[1] = Vec::matmul(triangle.p[1], world_matrix);
+            tri_transformed.p[2] = Vec::matmul(triangle.p[2], world_matrix);
+
+            // get normal to cull triangles w/ normals pointing away from the camera
+            Vec line1 = Vec::sub(tri_transformed.p[1], tri_transformed.p[0]);
+            Vec line2 = Vec::sub(tri_transformed.p[2], tri_transformed.p[0]);
+            // cross product to get normal to triangle surface
+            Vec normal = Vec::cross(line1, line2);
+            normal = Vec::normal(normal);
+            // get ray from triangle to camera
+            Vec camera_ray = Vec::sub(tri_transformed.p[0], this->camera);
+            // dot product to see if triangle is facing camera, skip if not
+            if (Vec::dot(normal, camera_ray) >= 0)
+                continue;
+
+            // illumination
+            Vec light = Vec{ 1, 1, -1 };
+            light = Vec::normal(light);
+            // keep dot product
+            double light_dp = std::max(0.1, Vec::dot(light, normal));
+            // set grayscale color based on dot product
+            unsigned char grayscale = (unsigned char)std::abs(255 * light_dp);
+            tri_transformed.shade = SDL_Color{ grayscale, grayscale, grayscale, 255 };
+
+            // convert world space to view space
+            tri_viewed.p[0] = Vec::matmul(tri_transformed.p[0], view_matrix);
+            tri_viewed.p[1] = Vec::matmul(tri_transformed.p[1], view_matrix);
+            tri_viewed.p[2] = Vec::matmul(tri_transformed.p[2], view_matrix);
+
+            Triangle clipped[2] = { Triangle{}, Triangle{} };
+            Vec v1 = Vec{ 0.0, 0.0, 0.1 };
+            Vec v2 = Vec{ 0.0, 0.0, 1.0 };
+            int clipped_triangles = Triangle::clip_against_plane(v1, v2, tri_viewed, clipped[0], clipped[1]);
+
+            // project
+            for (int i = 0; i < clipped_triangles; i++) {
+                // project triangles from 3D to 2D
+                tri_projected.p[0] = Vec::matmul(clipped[i].p[0], this->proj_matrix);
+                tri_projected.p[1] = Vec::matmul(clipped[i].p[1], this->proj_matrix);
+                tri_projected.p[2] = Vec::matmul(clipped[i].p[2], this->proj_matrix);
+                // manually normalize projection matrix
+                tri_projected.p[0] = Vec::div(tri_projected.p[0], tri_projected.p[0].w);
+                tri_projected.p[1] = Vec::div(tri_projected.p[1], tri_projected.p[1].w);
+                tri_projected.p[2] = Vec::div(tri_projected.p[2], tri_projected.p[2].w);
+                // offset vertices into visible normalized space
+                Vec offset_view = Vec{ 1, 1, 0 };
+                tri_projected.p[0] = Vec::add(tri_projected.p[0], offset_view);
+                tri_projected.p[1] = Vec::add(tri_projected.p[1], offset_view);
+                tri_projected.p[2] = Vec::add(tri_projected.p[2], offset_view);
+
+                // scale screen by resolution
+                double w_scale = 0.5 * this->screen_width;
+                double h_scale = 0.5 * this->screen_height;
+                tri_projected.p[0].x *= w_scale;
+                tri_projected.p[0].y *= h_scale;
+                tri_projected.p[1].x *= w_scale;
+                tri_projected.p[1].y *= h_scale;
+                tri_projected.p[2].x *= w_scale;
+                tri_projected.p[2].y *= h_scale;
+
+                // store triangle for sorting, draw tris back to front
+                this->triangles_to_raster.push_back(tri_projected);
+            }
+        } // end for
+        std::sort(this->triangles_to_raster.begin(), this->triangles_to_raster.end(), [](Triangle& t1, Triangle& t2) {
+            return (t1.p[0].z + t1.p[1].z + t1.p[2].z) / 3 < (t2.p[0].z + t2.p[1].z + t2.p[2].z) / 3;
+        });
+;       raster();
+    }
+};
+
 namespace Modules {
 
 void trace_setup(pse::Context& ctx)
 {
-    
+    Ctx = &ctx;
 }
 
 void trace_update(pse::Context& ctx)
 {
-
+    static Graphics graphics = Graphics{ "src/modules/trace_assets/mountains.obj", Ctx->screen_height, Ctx->screen_width };
+    graphics.update();
 }
 
 }
