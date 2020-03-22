@@ -1,3 +1,5 @@
+#include <algorithm>
+
 #include "ctx.hpp"
 #include "ctx_draw.hpp"
 #include "util.hpp"
@@ -139,6 +141,24 @@ void Context::draw_tri_fill(SDL_Color c, int x1, int y1, int x2, int y2, int x3,
     for (x = x3, y = y3; (int)x != x1 && (int)y != y1; x += xstep, y += ystep) {
         SDL_RenderDrawLine(renderer, (int)x, (int)y, x2, y2);
     }
+}
+
+void Context::draw_tri_fill_fast(SDL_Color c, int x1, int y1, int x2, int y2, int x3, int y3)
+{
+    SDL_SetRenderDrawColor(renderer, c.r, c.g, c.b, c.a);
+
+    // circumscribed square around triangle method
+
+    // smallest index = top left corner
+    int cornerx = std::min(x1, std::min(x2, x3));
+    int cornery = std::min(y1, std::min(y2, y3));
+
+    // width
+    int widthx = std::max(x1, std::max(x2, x3)) - cornerx;
+    int widthy = std::max(y1, std::max(y2, y3)) - cornery;
+
+    SDL_Rect rect = SDL_Rect{ cornerx, cornery, widthx, widthy };
+    SDL_RenderFillRect(renderer, &rect);
 }
 
 } // pse

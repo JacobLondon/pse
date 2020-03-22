@@ -374,6 +374,7 @@ struct Mesh {
                 this->triangles.push_back(Triangle{ vertices[f1], vertices[f2], vertices[f3] });
             }
         }
+        free(text);
     }
 };
 
@@ -553,6 +554,7 @@ struct Graphics {
             tri_viewed.p[0] = Vec::matmul(tri_transformed.p[0], view_matrix);
             tri_viewed.p[1] = Vec::matmul(tri_transformed.p[1], view_matrix);
             tri_viewed.p[2] = Vec::matmul(tri_transformed.p[2], view_matrix);
+            tri_viewed.shade = tri_transformed.shade;
 
             Triangle clipped[2] = { Triangle{}, Triangle{} };
             Vec v1 = Vec{ 0.0, 0.0, 0.1 };
@@ -565,6 +567,7 @@ struct Graphics {
                 tri_projected.p[0] = Vec::matmul(clipped[i].p[0], this->proj_matrix);
                 tri_projected.p[1] = Vec::matmul(clipped[i].p[1], this->proj_matrix);
                 tri_projected.p[2] = Vec::matmul(clipped[i].p[2], this->proj_matrix);
+                tri_projected.shade = clipped[i].shade;
                 // manually normalize projection matrix
                 tri_projected.p[0] = Vec::div(tri_projected.p[0], tri_projected.p[0].w);
                 tri_projected.p[1] = Vec::div(tri_projected.p[1], tri_projected.p[1].w);
@@ -589,7 +592,7 @@ struct Graphics {
                 this->triangles_to_raster.push_back(tri_projected);
             }
         } // end for
-        std::sort(this->triangles_to_raster.begin(), this->triangles_to_raster.end(), [](Triangle& t1, Triangle& t2) {
+        std::sort(this->triangles_to_raster.rbegin(), this->triangles_to_raster.rend(), [](Triangle& t1, Triangle& t2) {
             return (t1.p[0].z + t1.p[1].z + t1.p[2].z) / 3 < (t2.p[0].z + t2.p[1].z + t2.p[2].z) / 3;
         });
 ;       raster();
