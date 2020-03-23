@@ -609,7 +609,8 @@ struct Graphics {
             }
         } // end for
         std::sort(this->triangles_to_raster.rbegin(), this->triangles_to_raster.rend(), [](Triangle& t1, Triangle& t2) {
-            return (t1.p[0].z + t1.p[1].z + t1.p[2].z) / 3 < (t2.p[0].z + t2.p[1].z + t2.p[2].z) / 3;
+            // distance defaults to 0 but it should be set, if this fails, then something else is wrong!
+            return t1.distance < t2.distance;
         });
 ;       raster();
     }
