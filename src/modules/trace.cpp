@@ -63,7 +63,11 @@ struct Vec {
     // 1x4 * 4x4 -> 1x4
     static Vec matmul(Vec& v, Matrix& m);
 
-    static double dist(Vec& p, Vec& plane_n, Vec& plane_p) {
+    static double dist(Vec& v1, Vec& v2) {
+        return (double)fast_sqrtf((float)((v2.x - v1.x) * (v2.x - v1.x) + (v2.y - v1.y) * (v2.y - v1.y) + (v2.z - v1.z) * (v2.z - v1.z)));
+    }
+
+    static double dist_from_plane(Vec& p, Vec& plane_n, Vec& plane_p) {
         return (plane_n.x * p.x + plane_n.y * p.y + plane_n.z * p.z - Vec::dot(plane_n, plane_p));
     }
 
@@ -227,9 +231,10 @@ Vec Vec::matmul(Vec& v, Matrix& m) {
 struct Triangle {
     Vec p[3];
     SDL_Color shade = SDL_Color{ 255, 255, 255, 255 };
+    double distance = 0;
 
-    Triangle() : p{ Vec{}, Vec{}, Vec{} }, shade{ 255, 255, 255, 255 } {}
-    Triangle(Vec v1, Vec v2, Vec v3) : p{ v1, v2, v3 }, shade{ 255, 255, 255, 255 } {}
+    Triangle() : p{ Vec{}, Vec{}, Vec{} }, shade{ 255, 255, 255, 255 }, distance{ 0 } {}
+    Triangle(Vec v1, Vec v2, Vec v3) : p{ v1, v2, v3 }, shade{ 255, 255, 255, 255 }, distance{ 0 } {}
 
     static int clip_against_plane(Vec& plane_p, Vec& plane_n, Triangle& in_t, Triangle& out_t1, Triangle& out_t2) {
         int retval = 0;
@@ -246,9 +251,9 @@ struct Triangle {
 
         // calculate distance from each point in
         // the triangle to the plane
-        double d0 = Vec::dist(in_t.p[0], plane_n, plane_p);
-        double d1 = Vec::dist(in_t.p[1], plane_n, plane_p);
-        double d2 = Vec::dist(in_t.p[2], plane_n, plane_p);
+        double d0 = Vec::dist_from_plane(in_t.p[0], plane_n, plane_p);
+        double d1 = Vec::dist_from_plane(in_t.p[1], plane_n, plane_p);
+        double d2 = Vec::dist_from_plane(in_t.p[2], plane_n, plane_p);
 
         if (d0 >= 0.0) {
             inside_points.push_back(in_t.p[0]);
@@ -459,13 +464,23 @@ struct Graphics {
 
                     // add the new triangles to the back of the queue
                     for (j = 0; j < tris_to_add; j++) {
+                        clipped[j].distance = tri_to_raster.distance;
                         triangles.push_back(clipped[j]);
                     }
                 } // end while
                 new_triangles = (int)triangles.size();
             } // end for
+
+            // triangles have screen space coordinates
             for (Triangle t : triangles) {
-                Ctx->draw_tri_fill(t.shade, t.p[0].x, t.p[0].y, t.p[1].x, t.p[1].y, t.p[2].x, t.p[2].y);
+                if (t.distance > 0.998)
+                    Ctx->draw_tri_fast_square(t.shade, t.p[0].x, t.p[0].y, t.p[1].x, t.p[1].y, t.p[2].x, t.p[2].y);
+                else if (t.distance > 0.994)
+                    Ctx->draw_tri_fast_depth(t.shade, t.p[0].x, t.p[0].y, t.p[1].x, t.p[1].y, t.p[2].x, t.p[2].y, 2);
+                else if (t.distance > 0.992)
+                    Ctx->draw_tri_fast_depth(t.shade, t.p[0].x, t.p[0].y, t.p[1].x, t.p[1].y, t.p[2].x, t.p[2].y, 3);
+                else
+                    Ctx->draw_tri_fill(t.shade, t.p[0].x, t.p[0].y, t.p[1].x, t.p[1].y, t.p[2].x, t.p[2].y);
             }
         }
     }
@@ -587,6 +602,7 @@ struct Graphics {
                 tri_projected.p[1].y *= h_scale;
                 tri_projected.p[2].x *= w_scale;
                 tri_projected.p[2].y *= h_scale;
+                tri_projected.distance = (tri_projected.p[0].z + tri_projected.p[1].z + tri_projected.p[2].z) / 3;
 
                 // store triangle for sorting, draw tris back to front
                 this->triangles_to_raster.push_back(tri_projected);

@@ -143,7 +143,7 @@ void Context::draw_tri_fill(SDL_Color c, int x1, int y1, int x2, int y2, int x3,
     }
 }
 
-void Context::draw_tri_fill_fast(SDL_Color c, int x1, int y1, int x2, int y2, int x3, int y3)
+void Context::draw_tri_fast_square(SDL_Color c, int x1, int y1, int x2, int y2, int x3, int y3)
 {
     SDL_SetRenderDrawColor(renderer, c.r, c.g, c.b, c.a);
 
@@ -159,6 +159,67 @@ void Context::draw_tri_fill_fast(SDL_Color c, int x1, int y1, int x2, int y2, in
 
     SDL_Rect rect = SDL_Rect{ cornerx, cornery, widthx, widthy };
     SDL_RenderFillRect(renderer, &rect);
+}
+
+void Context::draw_tri_fast_depth(SDL_Color c, int x1, int y1, int x2, int y2, int x3, int y3, int depth)
+{
+    SDL_SetRenderDrawColor(renderer, c.r, c.g, c.b, c.a);
+
+    /**
+     * Square-Centroid Method
+     * Follow the centroid of the triangle to each corner,
+     * drawing a square the size 1/2, 2/3, 3/4, ... of the circumscribed width of the triangle
+     * at distances 1/2, 2/3, 3/4, ... from the centroid of the circle to each corner.
+     */
+
+    // find centeroid
+    int ox = (x1 + x2 + x2) / 3;
+    int oy = (y1 + y2 + y3) / 3;
+
+    // find distances to each corner from centroid
+    double dx1 = (double)(x1 - ox);
+    double dy1 = (double)(y1 - oy);
+    double dx2 = (double)(x2 - ox);
+    double dy2 = (double)(y2 - oy);
+    double dx3 = (double)(x3 - ox);
+    double dy3 = (double)(y3 - oy);
+
+    // width
+    int widthx = std::max(x1, std::max(x2, x3)) - std::min(x1, std::min(x2, x3));
+    int widthy = std::max(y1, std::max(y2, y3)) - std::min(y1, std::min(y2, y3));
+
+    SDL_Rect rect = SDL_Rect{ ox - widthx / 4, oy - widthy / 4, widthx / 2, widthy / 2 };
+    SDL_RenderFillRect(renderer, &rect);
+
+    // draw on each arm
+    double fraction;
+    for (int i = 0; i < depth; i++) {
+        fraction = (double)i / (double)(i + 1);
+        rect = SDL_Rect{
+            (int)(ox + dx1 * fraction - widthx * fraction / 2),
+            (int)(oy + dy1 * fraction - widthy * fraction / 2),
+            (int)(widthx * fraction),
+            (int)(widthy * fraction)
+        };
+        SDL_RenderFillRect(renderer, &rect);
+
+        rect = SDL_Rect{
+            (int)(ox + dx2 * fraction - widthx * fraction / 2),
+            (int)(oy + dy2 * fraction - widthy * fraction / 2),
+            (int)(widthx * fraction),
+            (int)(widthy * fraction)
+        };
+        SDL_RenderFillRect(renderer, &rect);
+
+        rect = SDL_Rect{
+            (int)(ox + dx3 * fraction - widthx * fraction / 2),
+            (int)(oy + dy3 * fraction - widthy * fraction / 2),
+            (int)(widthx * fraction),
+            (int)(widthy * fraction)
+        };
+        SDL_RenderFillRect(renderer, &rect);
+
+    }
 }
 
 } // pse
