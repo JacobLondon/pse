@@ -2,9 +2,7 @@
 #include <cstdio>
 #include <algorithm>
 #include <deque>
-#include <fstream>
 #include <string>
-#include <streambuf>
 #include <vector>
 
 #include "../modules.hpp"
@@ -473,14 +471,7 @@ struct Graphics {
 
             // triangles have screen space coordinates
             for (Triangle t : triangles) {
-                if (t.distance > 0.998)
-                    Ctx->draw_tri_fast_square(t.shade, t.p[0].x, t.p[0].y, t.p[1].x, t.p[1].y, t.p[2].x, t.p[2].y);
-                else if (t.distance > 0.994)
-                    Ctx->draw_tri_fast_depth(t.shade, t.p[0].x, t.p[0].y, t.p[1].x, t.p[1].y, t.p[2].x, t.p[2].y, 2);
-                else if (t.distance > 0.992)
-                    Ctx->draw_tri_fast_depth(t.shade, t.p[0].x, t.p[0].y, t.p[1].x, t.p[1].y, t.p[2].x, t.p[2].y, 3);
-                else
-                    Ctx->draw_tri_fill(t.shade, t.p[0].x, t.p[0].y, t.p[1].x, t.p[1].y, t.p[2].x, t.p[2].y);
+                Ctx->draw_tri_fill_scan(t.shade, t.p[0].x, t.p[0].y, t.p[1].x, t.p[1].y, t.p[2].x, t.p[2].y);
             }
         }
     }
