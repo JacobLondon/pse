@@ -377,9 +377,50 @@ struct Mesh {
                 this->triangles.push_back(Triangle{ vertices[f1], vertices[f2], vertices[f3] });
             }
         }
-        free(text);
+         free(text);
     }
 };
+
+static bool point_in_triangle(Vec& s, Triangle& t) {
+    Vec& a = t.p[0];
+    Vec& b = t.p[1];
+    Vec& c = t.p[2];
+    int as_x = s.x - a.x;
+    int as_y = s.y - a.y;
+
+    bool s_ab = (b.x - a.x) * as_y - (b.y - a.y) * as_x > 0;
+
+    if ((c.x - a.x) * as_y - (c.y - a.y) * as_x > 0 == s_ab) return false;
+
+    if ((c.x - b.x) * (s.y - b.y) - (c.y - b.y) * (s.x - b.x) > 0 != s_ab) return false;
+
+    return true;
+}
+
+static bool point_in_tri_area(Vec& s, Triangle& t) {
+    Vec& a = t.p[0];
+    Vec& b = t.p[1];
+    Vec& c = t.p[2];
+    auto area = [](int x1, int y1, int x2, int y2, int x3, int y3) {
+        return abs((x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2)) / 2.0);
+    };
+
+    double a0 = area(a.x, a.y, b.x, b.y, c.x, c.y);
+    double a1 = area(s.x, s.y, b.x, b.y, c.x, c.y);
+    double a2 = area(a.x, a.y, s.x, s.y, c.x, c.y);
+    double a3 = area(a.x, a.y, b.x, b.y, s.x, s.y);
+    return (a0 == a1 + a2 + a3);
+}
+
+static bool point_on_triangle(Vec& s, Triangle& t) {
+    return (s.x == t.p[0].x && s.y == t.p[0].y)
+        || (s.x == t.p[1].x && s.y == t.p[1].y)
+        || (s.x == t.p[2].x && s.y == t.p[2].y);
+}
+
+static bool tri_in_tri(Triangle& t1, Triangle& t2) {
+    return point_in_triangle(t1.p[0], t2) && point_in_triangle(t1.p[1], t2) && point_in_triangle(t1.p[2], t2);
+}
 
 struct Graphics {
     std::vector<Triangle> triangles_to_raster = std::vector<Triangle>{};
@@ -411,6 +452,7 @@ struct Graphics {
         static int i, j;
         static int new_triangles;
         static std::deque<Triangle> triangles;
+        static std::vector<Triangle> to_draw;
         static Triangle clipped[2];
 
         for (Triangle tri_to_raster : this->triangles_to_raster) {
@@ -471,15 +513,50 @@ struct Graphics {
 
             // triangles have screen space coordinates
             for (Triangle t : triangles) {
-                Ctx->draw_tri_fill_scan(t.shade, t.p[0].x, t.p[0].y, t.p[1].x, t.p[1].y, t.p[2].x, t.p[2].y);
+                to_draw.push_back(t);
             }
         }
+
+        std::sort(to_draw.rbegin(), to_draw.rend(), [](Triangle & t1, Triangle & t2) {
+            // distance defaults to 0 but it should be set, if this fails, then something else is wrong!
+            return t1.distance < t2.distance;
+        });
+
+        // remove triangles covered by others, furthest away in front, closest in back
+        static bool i0, i1, i2;
+        for (int i = 0; i < to_draw.size(); i++) {
+            i0 = i1 = i2 = false;
+            // test each point to see if it is within a closer triangle
+            for (int j = to_draw.size() - 1; j > i; j--) {
+                if (!i0 &&  point_in_triangle(to_draw[i].p[0], to_draw[j])) {
+                    i0 = true;
+                }
+                if (!i1 && point_in_triangle(to_draw[i].p[1], to_draw[j])) {
+                    i1 = true;
+                }
+                if (!i2 && point_in_triangle(to_draw[i].p[2], to_draw[j])) {
+                    i2 = true;
+                }
+                if (i0 && i1 && i2) {
+                    to_draw[i].p[0].x = 0;
+                    to_draw[i].p[1].x = 0;
+                    to_draw[i].p[2].x = 0;
+                    break;
+                }
+            }
+        }
+
+        for (Triangle t : to_draw) {
+            //Ctx->draw_tri_fill_scan(t.shade, t.p[0].x, t.p[0].y, t.p[1].x, t.p[1].y, t.p[2].x, t.p[2].y);
+            Ctx->draw_tri(t.shade, t.p[0].x, t.p[0].y, t.p[1].x, t.p[1].y, t.p[2].x, t.p[2].y);
+        }
+        to_draw.clear();
     }
 
     void update() {
-        Vec forward_vec = Vec::mul(this->look_dir, 8 * Ctx->delta_time);
+        Vec forward_vec = Vec::mul(this->look_dir, this->speed * Ctx->delta_time);
         Vec right_vec = Vec::cross(this->look_dir, this->up_vec);
-        right_vec = Vec::mul(right_vec, 8 * Ctx->delta_time);
+        right_vec = Vec::mul(right_vec, this->speed * Ctx->delta_time);
         // forward
         if (Ctx->check_key(SDL_SCANCODE_W))
             this->camera = Vec::add(this->camera, forward_vec);
@@ -504,6 +581,10 @@ struct Graphics {
         // turn right
         if (Ctx->check_key(SDL_SCANCODE_RIGHT))
             this->yaw += 0.1;
+        if (Ctx->check_key(SDL_SCANCODE_LCTRL))
+            this->speed = 300;
+        else
+            this->speed = 10;
 
         this->triangles_to_raster.clear();
 
@@ -603,6 +684,7 @@ struct Graphics {
             // distance defaults to 0 but it should be set, if this fails, then something else is wrong!
             return t1.distance < t2.distance;
         });
+
 ;       raster();
     }
 };

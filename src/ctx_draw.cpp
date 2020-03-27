@@ -110,6 +110,7 @@ void Context::draw_line(SDL_Color c, int x1, int y1, int x2, int y2)
 
 void Context::draw_tri(SDL_Color c, int x1, int y1, int x2, int y2, int x3, int y3)
 {
+    if (x1 == x2 == x3) return;
     SDL_SetRenderDrawColor(renderer, c.r, c.g, c.b, c.a);
     SDL_RenderDrawLine(renderer, x1, y1, x2, y2);
     SDL_RenderDrawLine(renderer, x2, y2, x3, y3);

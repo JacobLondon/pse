@@ -8,7 +8,6 @@ Release/
 Debug/
 
 *.o
-*.obj
 pse
 
 # allow for includes
