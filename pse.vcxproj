@@ -160,6 +160,7 @@
     <ClCompile Include="src\ctx_draw.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\modules\demo.cpp" />
+    <ClCompile Include="src\modules\mil.cpp" />
     <ClCompile Include="src\modules\rogue\draw.cpp" />
     <ClCompile Include="src\modules\rogue\entity.cpp" />
     <ClCompile Include="src\modules\rogue\gen.cpp" />
@@ -167,6 +168,7 @@
     <ClCompile Include="src\modules\rogue\rogue.cpp" />
     <ClCompile Include="src\modules\rogue\types.cpp" />
     <ClCompile Include="src\modules\trace.cpp" />
+    <ClCompile Include="src\types.cpp" />
     <ClCompile Include="src\util.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -179,6 +181,7 @@
     <ClInclude Include="src\modules\rogue\globals.hpp" />
     <ClInclude Include="src\modules\rogue\types.hpp" />
     <ClInclude Include="src\pse.hpp" />
+    <ClInclude Include="src\types.hpp" />
     <ClInclude Include="src\util.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

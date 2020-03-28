@@ -7,21 +7,22 @@
 
 int main(int argc, char **argv)
 {
-    auto run = [](const char *title, auto setup, auto update) {
-        pse::Context ctx = pse::Context(title, PSE_RESOLUTION_43_1024_768, 60, setup, update);
-    };
+    auto ctx = pse::Context("PSE", PSE_RESOLUTION_43_1024_768, 60);
 
     if (arg_check(argc, argv, "--demo")) {
-        run("Demo", Modules::demo_setup, Modules::demo_update);
+        ctx.run(Modules::demo_setup, Modules::demo_update);
     }
     else if (arg_check(argc, argv, "--rogue")) {
-        run("Rogue", Modules::rogue_setup, Modules::rogue_update);
+        ctx.run(Modules::rogue_setup, Modules::rogue_update);
     }
     else if (arg_check(argc, argv, "--trace")) {
-        run("Tracer", Modules::trace_setup, Modules::trace_update);
+        ctx.run(Modules::trace_setup, Modules::trace_update);
+    }
+    else if (arg_check(argc, argv, "--mil")) {
+        ctx.run(Modules::mil_setup, Modules::mil_update);
     }
     else {
-        printf("Usage:\n--demo\n--rogue\n");
+        printf("Usage:\n--demo\n--rogue\n--trace\n");
     }
 
     return 0;

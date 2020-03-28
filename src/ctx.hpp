@@ -21,32 +21,42 @@ namespace pse {
 #define PSE_RESOLUTION_169_1600_900 1600, 900
 #define PSE_RESOLUTION_169_1920_1080 1920, 1080
 
-struct Context {
+class Context {
+private:
     // SDL bindings
-    SDL_Window* window;
-    SDL_Renderer* renderer;
-    SDL_Event event;
-    std::vector<SDL_Texture *> textures;
+    SDL_Window* window = nullptr;
+    SDL_Renderer* renderer = nullptr;
+    SDL_Event event = {0};
+public:
+    std::vector<SDL_Texture *> textures{};
 
     // input devices
     struct {
-        int x, y;
-    } mouse;
-    unsigned char *keystate;
+        int x;
+        int y;
+    } mouse = {
+        0, 0
+    };
+    unsigned char *keystate = nullptr;
 
     // frame stats
-    unsigned frame_target, frame_counter;
-    double delta_time;
+private:
+    double frame_time_target = 0.0;
+public:
+    size_t frame_target = 60;
+    size_t frame_counter = 0;
+    double delta_time = 1.0;
 
     // window data
-    int screen_width, screen_height;
-    const char* title;
-    bool done;
+    int screen_width = 640;
+    int screen_height = 480;
+    const char* title = nullptr;
+    bool done = false;
 
-    Context(const char *title, int w, int h, unsigned fps,
-        void (*setup)(Context& ctx), void (*update)(Context& ctx),
-        time_t *seed = 0);
+    Context(const char *title, int w, int h, size_t fps);
     ~Context();
+    void set_window(const char *title, int w, int h, unsigned int flags);
+    void run(void (*setup)(Context& ctx), void (*update)(Context& ctx));
     bool check_key(int sdl_scancode);
     bool check_key_invalidate(int sdl_scancode);
     void quit();
@@ -61,9 +71,8 @@ struct Context {
     void draw_line(SDL_Color c, int x1, int y1, int x2, int y2); // draw a line
     void draw_tri(SDL_Color c, int x1, int y1, int x2, int y2, int x3, int y3);
     void draw_tri_fill(SDL_Color c, int x1, int y1, int x2, int y2, int x3, int y3);
-    void draw_tri_fill_scan(SDL_Color c, int x1, int y1, int x2, int y2, int x3, int y3);
-    void draw_tri_fast_square(SDL_Color c, int x1, int y1, int x2, int y2, int x3, int y3);
-    void draw_tri_fast_depth(SDL_Color c, int x1, int y1, int x2, int y2, int x3, int y3, int depth);
+private:
+    void set_frame_target(size_t target);
 };
 
 } // pse

@@ -57,6 +57,12 @@
     <ClCompile Include="src\modules\trace.cpp">
       <Filter>Modules</Filter>
     </ClCompile>
+    <ClCompile Include="src\modules\mil.cpp">
+      <Filter>Modules</Filter>
+    </ClCompile>
+    <ClCompile Include="src\types.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\pse.hpp">
@@ -87,6 +93,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\ctx_draw.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\types.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

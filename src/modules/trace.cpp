@@ -7,6 +7,8 @@
 
 #include "../modules.hpp"
 
+namespace trace {
+
 pse::Context *Ctx;
 
 struct Matrix;
@@ -413,9 +415,25 @@ static bool point_in_tri_area(Vec& s, Triangle& t) {
 }
 
 static bool point_on_triangle(Vec& s, Triangle& t) {
-    return (s.x == t.p[0].x && s.y == t.p[0].y)
-        || (s.x == t.p[1].x && s.y == t.p[1].y)
-        || (s.x == t.p[2].x && s.y == t.p[2].y);
+    Vec& a = t.p[0];
+    Vec& b = t.p[1];
+    Vec& c = t.p[2];
+
+    /*if (   (s.x == a.x && s.y == a.y)
+        || (s.x == b.x && s.y == b.y)
+        || (s.x == c.x && s.y == c.y))
+    {
+        return true;
+    }*/
+
+    double m = (a.y - b.y) / (a.x - b.x);
+    if (s.y == m * s.x + (a.y - b.y)) return true;
+    m = (b.y - c.y) / (b.x - c.x);
+    if (s.y == m * s.x + (b.y - c.y)) return true;
+    m = (c.y - a.y) / (c.x - a.x);
+    if (s.y == m * s.x + (c.y - a.y)) return true;
+    
+    return false;
 }
 
 static bool tri_in_tri(Triangle& t1, Triangle& t2) {
@@ -528,13 +546,13 @@ struct Graphics {
             i0 = i1 = i2 = false;
             // test each point to see if it is within a closer triangle
             for (int j = to_draw.size() - 1; j > i; j--) {
-                if (!i0 &&  point_in_triangle(to_draw[i].p[0], to_draw[j])) {
+                if (!i0 && point_in_triangle(to_draw[i].p[0], to_draw[j]) && !point_on_triangle(to_draw[i].p[0], to_draw[j])) {
                     i0 = true;
                 }
-                if (!i1 && point_in_triangle(to_draw[i].p[1], to_draw[j])) {
+                if (!i1 && point_in_triangle(to_draw[i].p[1], to_draw[j]) && !point_on_triangle(to_draw[i].p[1], to_draw[j])) {
                     i1 = true;
                 }
-                if (!i2 && point_in_triangle(to_draw[i].p[2], to_draw[j])) {
+                if (!i2 && point_in_triangle(to_draw[i].p[2], to_draw[j]) && !point_on_triangle(to_draw[i].p[2], to_draw[j])) {
                     i2 = true;
                 }
                 if (i0 && i1 && i2) {
@@ -685,20 +703,22 @@ struct Graphics {
             return t1.distance < t2.distance;
         });
 
-;       raster();
+        raster();
     }
 };
+
+} // trace
 
 namespace Modules {
 
 void trace_setup(pse::Context& ctx)
 {
-    Ctx = &ctx;
+    trace::Ctx = &ctx;
 }
 
 void trace_update(pse::Context& ctx)
 {
-    static Graphics graphics = Graphics{ "src/modules/trace_assets/mountains.obj", Ctx->screen_height, Ctx->screen_width };
+    static trace::Graphics graphics = trace::Graphics{ "src/modules/trace_assets/mountains.obj", ctx.screen_height, ctx.screen_width };
     graphics.update();
 }
 

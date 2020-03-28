@@ -3,26 +3,39 @@
 #include <thread>
 
 #include "ctx.hpp"
-#include "ctx_draw.hpp"
+#include "colors.hpp"
 
 namespace pse {
 
-Context::Context(const char* title, int w, int h, unsigned fps,
-    void (*setup)(Context& ctx), void (*update)(Context& ctx),
-    time_t *seed)
-    : window{ nullptr }, renderer{ nullptr }, event{}, textures{},
-      mouse{ 0, 0 }, keystate{ nullptr },
-      frame_target{ fps }, frame_counter{ 0 }, delta_time{ 1.0 },
-      screen_width{ w }, screen_height{ h }, title{ title }, done{ false }
+#define US_PER_S 1000000.0
+
+Context::Context(const char* title, int w, int h, size_t fps)
 {
     SDL_Init(SDL_INIT_EVERYTHING);
     
+    set_window(title, w, h, SDL_WINDOW_SHOWN);
+
+    if ((IMG_Init(IMG_INIT_PNG) & IMG_INIT_PNG) != IMG_INIT_PNG) {
+        fprintf(stderr, "Error: Failed to initialize SDL_image: %s\n", IMG_GetError());
+        exit(-1);
+    }
+
+    set_frame_target(fps);
+}
+
+void Context::set_window(const char *title, int w, int h, unsigned int flags)
+{
+    if (window) {
+        SDL_DestroyRenderer(renderer);
+        SDL_DestroyWindow(window);
+    }
+
     window = SDL_CreateWindow(
         title,
         SDL_WINDOWPOS_CENTERED,
         SDL_WINDOWPOS_CENTERED,
         screen_width, screen_height,
-        SDL_WINDOW_SHOWN
+        flags
     );
     if (!window) {
         fprintf(stderr, "Error: Failed to initialize SDL Window\n");
@@ -34,17 +47,11 @@ Context::Context(const char* title, int w, int h, unsigned fps,
         fprintf(stderr, "Error: Failed to initialize SDL Renderer\n");
         exit(-1);
     }
+}
 
-    if ((IMG_Init(IMG_INIT_PNG) & IMG_INIT_PNG) != IMG_INIT_PNG) {
-        fprintf(stderr, "Error: Failed to initialize SDL_image: %s\n", IMG_GetError());
-        exit(-1);
-    }
-
-    /**
-     * Utility
-     */
-
-    srand(time(seed));
+void Context::run(void (*setup)(Context& ctx), void (*update)(Context& ctx))
+{
+    srand(time(0));
 
     auto time_now = []() {
         return std::chrono::high_resolution_clock::now();
@@ -56,13 +63,9 @@ Context::Context(const char* title, int w, int h, unsigned fps,
         std::this_thread::sleep_for(std::chrono::microseconds((long long)(time)));
     };
 
-    /**
-     * Update
-     */
-
-    double frame_time, frame_time_target = 1.0 / frame_target * 1000000.0;
+    double frame_time = 0.0;
     auto frame_time_next = time_now();
-    auto frame_time_diff = time_now();
+    auto frame_time_diff = time_now() - frame_time_next;
 
     setup(*this);
 
@@ -88,14 +91,14 @@ Context::Context(const char* title, int w, int h, unsigned fps,
         SDL_RenderPresent(renderer);
 
         // frame management
-        auto frame_time_diff = time_now() - frame_time_next;
+        frame_time_diff = time_now() - frame_time_next;
         frame_time_next = time_now();
         frame_time = time_in_us(frame_time_diff);
         if (frame_time_target - frame_time > 0)
             sleep_us(frame_time_target - frame_time);
 
         frame_counter = (frame_counter + 1) % frame_target;
-        delta_time = frame_time / 1000000.0;
+        delta_time = frame_time / US_PER_S;
     }
 
     return;
@@ -126,6 +129,13 @@ bool Context::check_key_invalidate(int sdl_scancode)
 void Context::quit()
 {
     done = true;
+}
+
+void Context::set_frame_target(size_t target)
+{
+    frame_target = target;
+    frame_counter = 0;
+    frame_time_target = 1.0 / target * US_PER_S;
 }
 
 } // pse

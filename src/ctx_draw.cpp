@@ -1,7 +1,6 @@
 #include <algorithm>
 
 #include "ctx.hpp"
-#include "ctx_draw.hpp"
 #include "util.hpp"
 
 namespace pse {
@@ -121,33 +120,6 @@ void Context::draw_tri_fill(SDL_Color c, int x1, int y1, int x2, int y2, int x3,
 {
     SDL_SetRenderDrawColor(renderer, c.r, c.g, c.b, c.a);
 
-    double mag = (double)fast_sqrtf((float)((x2 - x1) * (x2 - x1)) + (float)((y2 - y1) * (y2 - y1)));
-    double xstep = (double)(x2 - x1) / mag;
-    double ystep = (double)(y2 - y1) / mag;
-    double x, y;
-    for (x = x1, y = y1; (int)x != x2 && (int)y != y2; x += xstep, y += ystep) {
-        SDL_RenderDrawLine(renderer, (int)x, (int)y, x3, y3);
-    }
-
-    mag = (double)fast_sqrtf((float)((x3 - x2) * (x3 - x2)) + (float)((y3 - y2) * (y3 - y2)));
-    xstep = (double)(x3 - x2) / mag;
-    ystep = (double)(y3 - y2) / mag;
-    for (x = x2, y = y2; (int)x != x3 && (int)y != y3; x += xstep, y += ystep) {
-        SDL_RenderDrawLine(renderer, (int)x, (int)y, x1, y1);
-    }
-
-    mag = (double)fast_sqrtf((float)((x1 - x3) * (x1 - x3)) + (float)((y1 - y3) * (y1 - y3)));
-    xstep = (double)(x1 - x3) / mag;
-    ystep = (double)(y1 - y3) / mag;
-    for (x = x3, y = y3; (int)x != x1 && (int)y != y1; x += xstep, y += ystep) {
-        SDL_RenderDrawLine(renderer, (int)x, (int)y, x2, y2);
-    }
-}
-
-void Context::draw_tri_fill_scan(SDL_Color c, int x1, int y1, int x2, int y2, int x3, int y3)
-{
-    SDL_SetRenderDrawColor(renderer, c.r, c.g, c.b, c.a);
-
     // https://www.youtube.com/watch?v=PahbNFypubE ~10:30
 
     // find the top point
@@ -180,85 +152,6 @@ void Context::draw_tri_fill_scan(SDL_Color c, int x1, int y1, int x2, int y2, in
         for (y = y2; y < y3; y++) {
             SDL_RenderDrawLine(renderer, x2 + (x3 - x2) * (y - y2) / (y3 - y2), y, x1 + (x3 - x1) * (y - y1) / (y3 - y1), y);
         }
-    }
-}
-
-void Context::draw_tri_fast_square(SDL_Color c, int x1, int y1, int x2, int y2, int x3, int y3)
-{
-    SDL_SetRenderDrawColor(renderer, c.r, c.g, c.b, c.a);
-
-    // circumscribed square around triangle method
-
-    // smallest index = top left corner
-    int cornerx = std::min(x1, std::min(x2, x3));
-    int cornery = std::min(y1, std::min(y2, y3));
-
-    // width
-    int widthx = std::max(x1, std::max(x2, x3)) - cornerx;
-    int widthy = std::max(y1, std::max(y2, y3)) - cornery;
-
-    SDL_Rect rect = SDL_Rect{ cornerx, cornery, widthx, widthy };
-    SDL_RenderFillRect(renderer, &rect);
-}
-
-void Context::draw_tri_fast_depth(SDL_Color c, int x1, int y1, int x2, int y2, int x3, int y3, int depth)
-{
-    SDL_SetRenderDrawColor(renderer, c.r, c.g, c.b, c.a);
-
-    /**
-     * Square-Centroid Method
-     * Follow the centroid of the triangle to each corner,
-     * drawing a square the size 1/2, 2/3, 3/4, ... of the circumscribed width of the triangle
-     * at distances 1/2, 2/3, 3/4, ... from the centroid of the circle to each corner.
-     */
-
-    // find centeroid
-    int ox = (x1 + x2 + x2) / 3;
-    int oy = (y1 + y2 + y3) / 3;
-
-    // find distances to each corner from centroid
-    double dx1 = (double)(x1 - ox);
-    double dy1 = (double)(y1 - oy);
-    double dx2 = (double)(x2 - ox);
-    double dy2 = (double)(y2 - oy);
-    double dx3 = (double)(x3 - ox);
-    double dy3 = (double)(y3 - oy);
-
-    // width
-    int widthx = std::max(x1, std::max(x2, x3)) - std::min(x1, std::min(x2, x3));
-    int widthy = std::max(y1, std::max(y2, y3)) - std::min(y1, std::min(y2, y3));
-
-    SDL_Rect rect = SDL_Rect{ ox - widthx / 4, oy - widthy / 4, widthx / 2, widthy / 2 };
-    SDL_RenderFillRect(renderer, &rect);
-
-    // draw on each arm
-    double fraction;
-    for (int i = 0; i < depth; i++) {
-        fraction = (double)i / (double)(i + 1);
-        rect = SDL_Rect{
-            (int)(ox + dx1 * fraction - widthx * fraction / 2),
-            (int)(oy + dy1 * fraction - widthy * fraction / 2),
-            (int)(widthx * fraction),
-            (int)(widthy * fraction)
-        };
-        SDL_RenderFillRect(renderer, &rect);
-
-        rect = SDL_Rect{
-            (int)(ox + dx2 * fraction - widthx * fraction / 2),
-            (int)(oy + dy2 * fraction - widthy * fraction / 2),
-            (int)(widthx * fraction),
-            (int)(widthy * fraction)
-        };
-        SDL_RenderFillRect(renderer, &rect);
-
-        rect = SDL_Rect{
-            (int)(ox + dx3 * fraction - widthx * fraction / 2),
-            (int)(oy + dy3 * fraction - widthy * fraction / 2),
-            (int)(widthx * fraction),
-            (int)(widthy * fraction)
-        };
-        SDL_RenderFillRect(renderer, &rect);
-
     }
 }
 

@@ -86,17 +86,17 @@ void demo_update(pse::Context& ctx)
     }*/
     Vec p(ctx.mouse.x, ctx.mouse.y);
     if (point_in_triangle(p, t1)) {
-        ctx.draw_tri_fill_scan(pse::Green, x1, y1, x2, y2, x3, y3);
+        ctx.draw_tri_fill(pse::Green, x1, y1, x2, y2, x3, y3);
     }
     else {
-        ctx.draw_tri_fill_scan(pse::Red, x1, y1, x2, y2, x3, y3);
+        ctx.draw_tri_fill(pse::Red, x1, y1, x2, y2, x3, y3);
     }
 
     if (tri_in_tri(t2, t1)) {
-        ctx.draw_tri_fill_scan(pse::Blue, x4, y4, x5, y5, x6, y6);
+        ctx.draw_tri_fill(pse::Blue, x4, y4, x5, y5, x6, y6);
     }
     else {
-        ctx.draw_tri_fill_scan(pse::Purple, x4, y4, x5, y5, x6, y6);
+        ctx.draw_tri_fill(pse::Purple, x4, y4, x5, y5, x6, y6);
     }
 
     //ctx.draw_tri_fill_scan(pse::Blue, x1, y1, x2, y2, x3, y3);
