@@ -6,7 +6,7 @@ OBJS=src/ctx_draw.o src/ctx.o src/main.o src/util.o \
 	src/pse-modules/rogue/entity.o src/pse-modules/rogue/gen.o \
 	src/pse-modules/rogue/globals.o src/pse-modules/rogue/draw.o \
 	src/pse-modules/rogue/rogue.o src/pse-modules/rogue/types.o \
-	src/pse-modules/trace.cpp
+	src/pse-modules/trace.o
 
 .PHONY: clean
 
