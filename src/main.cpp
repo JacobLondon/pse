@@ -1,7 +1,7 @@
 #include <cstdio>
 #include <cstring>
 
-#include "modules.hpp"
+#include "pse-modules/modules.hpp"
 
 // TODO: Fix rand_range, divides by 0 sometimes?
 
@@ -18,9 +18,9 @@ int main(int argc, char **argv)
     else if (arg_check(argc, argv, "--trace")) {
         ctx.run(Modules::trace_setup, Modules::trace_update);
     }
-    else if (arg_check(argc, argv, "--mil")) {
+    /*else if (arg_check(argc, argv, "--mil")) {
         ctx.run(Modules::mil_setup, Modules::mil_update);
-    }
+    }*/
     else {
         printf("Usage:\n--demo\n--rogue\n--trace\n");
     }
