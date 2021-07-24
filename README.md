@@ -1,9 +1,26 @@
 # Portable SDL2 Engine
 [SDL2-2.0.10](https://www.libsdl.org/)
 for Linux and Visual Studio 2019
+
+# Examples
+## Trace
+Currently a wireframe rasterizer with first person exploration, supporting very simple lighting and clipping.
+![trace](https://user-images.githubusercontent.com/17059471/126882775-c6d2e0d1-4f40-4fb1-865a-f73a8538c2de.png)
+
+`./pse --trace` Controls: wasd to move, arrow keys to turn, space to go up, lshift to go down, lctrl to go fast
+
+## Rogue
+2D dungeon generator with randomized room sizes/locations/connections/enemies and enemy pathfinding to player.
+![rogue](https://user-images.githubusercontent.com/17059471/126882776-708bf75a-7154-4335-89e0-7f2ffdeedbd1.png)
+
+`./pse --rogue` Controls: hjkl (vim) or arrow keys to move, space to use stairs, lshift to generate a floor (buggy)
+
 # Building & Dependencies
 ## Linux
 ```
+# Arch-based
+$ pacman -Syu sdl2 sdl2_image build-essential
+# Debian-based
 $ sudo apt-get install libsdl2-dev libsdl2-image-dev build-essential
 $ make
 ```
