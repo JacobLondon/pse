@@ -13,90 +13,81 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
-    <Filter Include="Modules">
-      <UniqueIdentifier>{bf4afbd8-6098-4cd1-9930-0cffbcaad0d9}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Modules\Rogue">
-      <UniqueIdentifier>{396b3a02-5ff1-472c-972d-332f2ba0e07f}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\main.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\util.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\modules\demo.cpp">
-      <Filter>Modules</Filter>
-    </ClCompile>
-    <ClCompile Include="src\modules\rogue\entity.cpp">
-      <Filter>Modules\Rogue</Filter>
-    </ClCompile>
-    <ClCompile Include="src\modules\rogue\gen.cpp">
-      <Filter>Modules\Rogue</Filter>
-    </ClCompile>
-    <ClCompile Include="src\modules\rogue\globals.cpp">
-      <Filter>Modules\Rogue</Filter>
-    </ClCompile>
-    <ClCompile Include="src\modules\rogue\rogue.cpp">
-      <Filter>Modules\Rogue</Filter>
-    </ClCompile>
-    <ClCompile Include="src\modules\rogue\types.cpp">
-      <Filter>Modules\Rogue</Filter>
-    </ClCompile>
-    <ClCompile Include="src\modules\rogue\draw.cpp">
-      <Filter>Modules\Rogue</Filter>
-    </ClCompile>
     <ClCompile Include="src\ctx.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\ctx_draw.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\modules\trace.cpp">
-      <Filter>Modules</Filter>
-    </ClCompile>
-    <ClCompile Include="src\modules\mil.cpp">
-      <Filter>Modules</Filter>
+    <ClCompile Include="src\main.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\types.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\util.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\pse-modules\demo.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\pse-modules\trace.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\pse-modules\rogue\draw.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\pse-modules\rogue\entity.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\pse-modules\rogue\gen.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\pse-modules\rogue\globals.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\pse-modules\rogue\rogue.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\pse-modules\rogue\types.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\pse.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\modules.hpp">
-      <Filter>Modules</Filter>
-    </ClInclude>
-    <ClInclude Include="src\util.hpp">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="src\modules\rogue\entity.hpp">
-      <Filter>Modules\Rogue</Filter>
-    </ClInclude>
-    <ClInclude Include="src\modules\rogue\gen.hpp">
-      <Filter>Modules\Rogue</Filter>
-    </ClInclude>
-    <ClInclude Include="src\modules\rogue\globals.hpp">
-      <Filter>Modules\Rogue</Filter>
-    </ClInclude>
-    <ClInclude Include="src\modules\rogue\types.hpp">
-      <Filter>Modules\Rogue</Filter>
-    </ClInclude>
-    <ClInclude Include="src\modules\rogue\draw.hpp">
-      <Filter>Modules\Rogue</Filter>
+    <ClInclude Include="src\colors.hpp">
+      <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="src\ctx.hpp">
-      <Filter>Header Files</Filter>
+      <Filter>Source Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\ctx_draw.hpp">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="src\pse.hpp">
+      <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="src\types.hpp">
-      <Filter>Header Files</Filter>
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\util.hpp">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\pse-modules\modules.hpp">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\pse-modules\rogue\draw.hpp">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\pse-modules\rogue\entity.hpp">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\pse-modules\rogue\gen.hpp">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\pse-modules\rogue\globals.hpp">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\pse-modules\rogue\types.hpp">
+      <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

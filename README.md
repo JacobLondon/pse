@@ -3,6 +3,8 @@
 for Linux and Visual Studio 2019
 
 # Examples
+Run `pse` with no arguments to see all available options.
+
 ## Trace
 Currently a wireframe rasterizer with first person exploration, supporting very simple lighting and clipping.
 ![trace](https://user-images.githubusercontent.com/17059471/126882775-c6d2e0d1-4f40-4fb1-865a-f73a8538c2de.png)
@@ -35,5 +37,18 @@ Move all DLLs under `/lib/x86/` or `/lib/x64/` into the root directory depending
 | C/C++ | Optimization: Optimization | Maximum Optimization (Favor Speed) (/O2) |
 | C/C++ | Optimization: Favor Size Or Speed | Favor fast code (/Ot) |
 | C/C++ | Language: C++ Language Standard | ISO C++17 Standard (/std:c++17) |
+| Linker | General: Additional Library Directories | lib/x86
 | Linker | Additional Dependencies: (Active(Win32) or Win32) | lib/x86/*.lib |
 | Linker | Additional Dependencies: (x64) | lib/x64/*.lib |
+
+For the last two steps in Linker: Additional Dependencies, paste the following in both:
+```
+SDL2.lib
+SDL2_image.lib
+SDL2main.lib
+```
+
+1. Then in change to Release/x86 or Debug/x86 and press `Ctrl+Shift+b`.
+2. For convenience, go into `lib/x86/` and copy all of the contents into `Release/` or `Debug/` so the `pse.exe` can see the DLLs.
+3. Execute the demo program from project root: `.\Release\pse.exe --trace`
+     * Note that this can be configured in Visual Studio, but requires reconfiguration to perform different demos
